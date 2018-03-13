@@ -1,0 +1,7 @@
+__pycache__
+*.pyc
+*.hdf5
+models/
+results/
+test.sh
+default.sh

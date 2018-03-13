@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+*.hdf5
+models/
+results/
+test.sh
+default.sh
+nohup*
+*.spec
+build/
+dist/

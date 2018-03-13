@@ -1,0 +1,15 @@
+Universe       = vanilla
+Requirements   = (Arch == "X86_64" ) && (OpSys == "LINUX") && (totalcpus >= 2)
+RequestCPUs    = 2
+Request_memory = 16G
+Executable     = run.sh
+Arguments      = "optimizer $(Process) config.json"
+Output         = logs/output.$(Process).out
+Error          = logs/error.$(Process).err
+Log            = logs/log.$(Process).log
+Should_transfer_files   = YES
+Transfer_input_files    = src/optimizer,src/config.json,data/training_norm_outer_df.csv,data/testing_norm_outer_df.csv
+When_to_transfer_output = ON_EXIT
+Transfer_output_files   = config-$(Process)-sol.csv,config-$(Process)-log.csv,cache.json
+Transfer_output_remaps  = "cache.json=cache.$(Process).json"
+Queue 30
