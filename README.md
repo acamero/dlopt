@@ -27,6 +27,13 @@ Each deliverable (sub project) contains a **requirements.txt** file listing the 
 
 Clone the repository on your local machine, install the dependencies (you may want to use a virtual environment), and have fun!
 
+### Building
+
+To build (binary) ann application (e.g. optimizer.py) you could use **pyinstaller**. Remember to add the path to required libraries and any hidden import, for example:
+
+```
+pyinstaller optimizer.py -F --path ../env/lib/python3.5/ --hidden-import algorithms
+```
 
 ## Publications
 
@@ -40,9 +47,9 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Authors
 
-* **Andrés Camero** - *Initial work* - [dlopt](https://github.com/acamero/dlopt)
+* [**Andrés Camero**](http://neo.lcc.uma.es/staff/acamero/) - *Initial work* - [dlopt](https://github.com/acamero/dlopt)
 
-Please see the list of scientific publications for more information about people who has participated in this project.
+Please see the list of scientific publications for more information about people who has participated in this project or visit [NEO](http://neo.lcc.uma.es) research webpage.
 
 
 
@@ -52,7 +59,8 @@ Please see the list of scientific publications for more information about people
 This project is licensed under the GNU GPL v3 license - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
-Spanish MINECO and FEDER projects
+
+This project has been partially funded by the Spanish MINECO and FEDER projects:
 * [TIN2014-57341-R](http://moveon.lcc.uma.es)
 * [TIN2016-81766-REDT](http://cirti.es)
 * [TIN2017-88213-R](http://6city.lcc.uma.es)

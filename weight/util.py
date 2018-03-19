@@ -103,6 +103,7 @@ class Config(object):
         self.max_look_back = 100
         self.max_neurons = 16
         self.max_layers = 16
+        self.blind = False
     
     def __str__(self):
         return str(self.__dict__)

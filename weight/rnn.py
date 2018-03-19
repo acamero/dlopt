@@ -82,6 +82,20 @@ class RNNBuilder(object):
                     for i in range(len_data - look_back)] ).reshape(-1,look_back, self.input_dim)
         return self.model.predict(X)
 
+    def predict_blind(self, train_set, test_set, x_features, y_features, look_back):
+        X_test = train_set[x_features].values[-look_back:] 
+        X_test = X_test.reshape(-1,look_back, len(x_features))        
+        append_features = list(filter(lambda x: x not in y_features, x_features))
+        pred_lstm = np.empty( (0, len(y_features)) , int)    
+        # Add the predicted values
+        for i in range(test_set.shape[0]):        
+            pred_lstm = np.append( pred_lstm, self.model.predict(X_test), axis=0)
+            X_test = X_test[0][1:]
+            x_append = np.concatenate( (pred_lstm[i], test_set[append_features].values[i]) )
+            X_test = np.append( X_test, x_append.reshape((1, len(x_features)) ), axis=0)
+            X_test = X_test.reshape(-1,look_back, len(x_features))  
+        return pred_lstm
+
     def model_to_png(self, out_file, shapes=True):
         plot_model( self.model, to_file=out_file, show_shapes=shapes)
 

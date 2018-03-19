@@ -35,7 +35,11 @@ class BaseOptimizer(ABC):
         if not self._validate_config(config):
             print('The configuration is not valid')
             raise 
-        self.data = data
+        if config.blind:
+            self.data = data
+        else:
+            self.data = pd.concat([data['train'],data['test']])
+            print("Testing and training data merged")
         self.config = config
         self.cache = cache
         self.layer_in = len(config.x_features)
@@ -63,8 +67,16 @@ class BaseOptimizer(ABC):
         metrics = self.cache.upsert_cache(model_hash, None)
         if metrics is None:
             rnn_solution = nn.RNNBuilder(decoded['layers'], decoded['weights'])
-            y_predicted = rnn_solution.predict(self.data[self.config.x_features], decoded['look_back'])
-            y_gt = self.data[self.config.y_features].values[decoded['look_back']:,:]
+            if self.config.blind:
+                y_predicted = rnn_solution.predict_blind(self.data['train'],
+                                                     self.data['test'],
+                                                     self.config.x_features, 
+                                                     self.config.y_features, 
+                                                     decoded['look_back'])
+                y_gt = self.data['test'][self.config.y_features].values[:,:]
+            else:
+                y_predicted = rnn_solution.predict(self.data[self.config.x_features], decoded['look_back'])
+                y_gt = self.data[self.config.y_features].values[decoded['look_back']:,:]
             mse = ut.mse_loss(y_predicted, y_gt)
             mae = ut.mae_loss(y_predicted, y_gt)
             metrics = { 'trainable_params':int(rnn_solution.trainable_params),
@@ -140,7 +152,6 @@ if __name__ == '__main__':
     # Load the data
     reader =config.data_reader_class()
     data = reader.load_data( config.data_folder )
-    data = pd.concat([data['train'],data['test']])
     # Load the cache
     if not FLAGS.nocache:
         cache = ut.FitnessCache()
@@ -158,7 +169,6 @@ if __name__ == '__main__':
         with open(config.results_folder + config.config_name + '-' + str(FLAGS.seed) + '-sol.csv','w') as f:
             for sol in hof:
                 f.write(str(sol) + ';' + str(sol.fitness.values) + '\n')
-                #print('sol=' + str(sol) + ';fitness=' + str(sol.fitness.values))
         f.close()
     except IOError:
         print('Unable to store the hall of fame')
