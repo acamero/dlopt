@@ -26,7 +26,7 @@ from deap import creator, base, tools, algorithms
 # https://github.com/keras-team/keras/issues/2280#issuecomment-306959926
 import os
 os.environ['PYTHONHASHSEED'] = '0'
-
+from pympler import tracker
 
 #########################################################################################################################
 class BaseOptimizer(ABC):
@@ -47,6 +47,7 @@ class BaseOptimizer(ABC):
         np.random.seed(seed)
         rd.seed(seed)
         tf.set_random_seed(seed)
+        self.memory_tracker = tracker.SummaryTracker()
 
     @abstractmethod
     def _validate_config(self, config):
@@ -92,6 +93,7 @@ class BaseOptimizer(ABC):
         else:
             print('Metrics load from cache')
         print(metrics)
+        self.memory_tracker.print_diff()
         return metrics
 
     def optimize(self, hof_size=1):

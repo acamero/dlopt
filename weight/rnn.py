@@ -48,9 +48,10 @@ def get_weights_array(weights_dict):
 ############################################################################################################
 class RNNBuilder(object):
 
-    def __init__(self, layers, weights):      
+    def __init__(self, layers, weights=None):      
         self.model = self._build_model( layers )
-        self.model.set_weights( weights )
+        if weights:
+            self.model.set_weights( weights )
         self.trainable_params = int(np.sum([K.count_params(p) for p in set(self.model.trainable_weights)]))
 
     def _build_model(self, layers):
@@ -75,6 +76,9 @@ class RNNBuilder(object):
                     )
         model.add(Dense(layers[-1], kernel_initializer='zeros', bias_initializer='zeros'))        
         return model
+
+    def update_weights(self, weights):
+        self.model.set_weights( weights )
 
     def predict(self, df_X, look_back):        
         len_data = len(df_X)
