@@ -22,7 +22,7 @@
        "Others-CCCPS135a", "Others-CCCPS202"],
 "max_look_back" : 31,
 "min_look_back" : 1,
-"max_neurons" : 100,
+"max_neurons" : 101,
 "min_neurons" : 1,
 "params_neuron" : 4,
 "min_layers" : 1,

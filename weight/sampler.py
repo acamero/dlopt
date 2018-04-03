@@ -55,6 +55,7 @@ class Sampler(object):
         np.random.seed(seed)
         rd.seed(seed)
         tf.set_random_seed(seed)
+        self.output_file = config.results_folder + config.config_name + '-' + str(seed) + '-sol.csv'
 
     def _validate_config(self, config):
         if config.merge_data is None:
@@ -65,6 +66,10 @@ class Sampler(object):
             return False
         if config.max_neurons is None or config.max_neurons < config.min_neurons:
             return False        
+        if config.min_layers is None or config.min_layers < 1:
+            return False
+        if config.max_layers is None or config.max_layers < config.min_layers:
+            return False       
         if config.params_neuron is None or config.params_neuron < 1:
             return False
         if config.min_look_back is None or config.min_look_back < 1:
@@ -76,6 +81,10 @@ class Sampler(object):
         if config.kernel_init_func is None:
             return False
         if config.kernel_init_func is None:
+            return False
+        if config.results_folder is None:
+            return False
+        if config.config_name is None:
             return False
         return True
 
@@ -110,17 +119,37 @@ class Sampler(object):
         del rnn_solution
         mean = np.mean(maes)
         sd = np.std(maes)
-        metrics = {'mean':mean, 'sd':sd, 'maes':maes}
+        metrics = {'mean':mean, 'sd':sd, 'maes':maes, 'arch':layers, 'look_back':look_back}
         return metrics
 
     def sample(self):
-        results = list()
-        for neurons in range(self.config.min_neurons, self.config.max_neurons):
+        init_patch = [self.config.min_neurons]
+        self._rec_sample(patch=init_patch)
+
+    def _rec_sample(self, patch=[], layer=0):        
+        if len(patch) < self.config.max_layers:
+            tmp = patch + [self.config.min_neurons]
+            self._rec_sample(patch=tmp, layer=(layer+1))
+        if patch[layer] < self.config.max_neurons:
+            tmp = patch.copy()
+            tmp[layer] = tmp[layer] + 1
+            self._rec_sample(patch=tmp, layer=layer)
+        if len(patch) >= self.config.min_layers:
             for look_back in range(self.config.min_look_back, self.config.max_look_back):
-                layers = [self.layer_in] + [neurons] + [self.layer_out]
+                layers = [self.layer_in] + patch + [self.layer_out]
+                print('arch: ' + str(layers) + ' lb:' + str(look_back))
                 metrics = self._sample_architecture(layers, look_back)
-                results.append(metrics)
-        return results
+                print('mean:' + str(metrics['mean']) + ' sd:' + str(metrics['sd']) )
+                self._save_metrics(metrics)
+
+    def _save_metrics(self, metrics):
+        try:
+            np.set_printoptions(threshold=np.inf)
+            with open(self.output_file, 'a') as f:
+                f.write(str(metrics)+'\n')
+            f.close()
+        except IOError:
+            print('Unable to store the metrics')
    
 
 #########################################################################################################################
@@ -149,15 +178,5 @@ if __name__ == '__main__':
     data = reader.load_data( config.data_folder )
     # Select the optimization algorithm
     sampler = Sampler(data, config, seed=FLAGS.seed)
-    results = sampler.sample()
-    print(results)
-    try:
-        np.set_printoptions(threshold=np.inf)
-        with open(config.results_folder + config.config_name + '-' + str(FLAGS.seed) + '-sol.csv','w') as f:
-            for sol in results:
-                f.write(str(sol)+'\n')
-        f.close()
-    except IOError:
-        print('Unable to store the hall of fame')
-
+    sampler.sample()
 

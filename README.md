@@ -37,7 +37,7 @@ pyinstaller optimizer.py -F --path ../env/lib/python3.5/ --hidden-import algorit
 
 ## Publications
 
-* Camero A., Toutouh, J., Stolfi, D.H., and Alba, E. Evolutionary Deep Learning for Car Park Occupancy Prediction in Smart Cities. To appear in Proc. of Learning and Intelligent OptimizatioN Conference (LION 12). 2008.
+* Camero A., Toutouh, J., Stolfi, D.H., and Alba, E. Evolutionary Deep Learning for Car Park Occupancy Prediction in Smart Cities. To appear in Proc. of Learning and Intelligent OptimizatioN Conference (LION 12). 2018.
 
 
 ## Contributing

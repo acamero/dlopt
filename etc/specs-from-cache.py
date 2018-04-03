@@ -33,7 +33,7 @@ def get_job_spec(config_name):
     template = Template("""Universe       = vanilla
 Requirements   = (Arch == "X86_64" ) && (OpSys == "LINUX") && (totalcpus >= 2)
 RequestCPUs    = 4
-Request_memory = 3G
+Request_memory = 5G
 Executable     = run.sh
 Arguments      = "optimizer $$(Process) $alg_spec_file"
 Output         = logs/output.$alg_spec_name.$$(Process).out
@@ -137,5 +137,9 @@ if __name__ == '__main__':
     FLAGS, unparsed = parser.parse_known_args()
     cache = load_from_file( FLAGS.cache )
     for cache_key in cache.keys():
-        get_alg_spec(cache_key)
+        get_alg_spec(cache_key,
+                 suffix="k", 
+                 kernel_func_str = "glorot_uniform",
+                 recurrent_func_str = "orthogonal",
+                 bias_func_str = "random_normal_narrow")
 
