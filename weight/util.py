@@ -40,6 +40,25 @@ class ParkingDFDataReader(DataReader):
         dfs['test'] = temp_df
         return dfs
 
+class SinDataReader(DataReader):
+    def load_data(self, data_path):
+        dfs = {}
+        try:
+            with open(data_path, 'r') as f:
+                f_str = f.read()
+                params = json.loads(f_str)                
+            f.close()
+            sin = np.sin( np.arange(start=params["training"]["start"], 
+                                    stop=params["training"]["stop"], 
+                                    step=params["training"]["step"] ) )
+            dfs['train'] = pd.DataFrame(data=sin, columns=["sin"])
+            sin = np.sin( np.arange(start=params["testing"]["start"], 
+                                    stop=params["testing"]["stop"], 
+                                    step=params["testing"]["step"] ) )
+            dfs['test'] = pd.DataFrame(data=sin, columns=["sin"])
+        except IOError:
+            print('Unable to load the cache')
+        return dfs
 
 ############################################################################################################
 class FitnessCache(object):

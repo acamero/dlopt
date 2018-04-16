@@ -135,6 +135,7 @@ class Sampler(object):
             tmp[layer] = tmp[layer] + 1
             self._rec_sample(patch=tmp, layer=layer)
         if len(patch) >= self.config.min_layers:
+            print('arch: ' + str(patch) )
             for look_back in range(self.config.min_look_back, self.config.max_look_back):
                 layers = [self.layer_in] + patch + [self.layer_out]
                 print('arch: ' + str(layers) + ' lb:' + str(look_back))
