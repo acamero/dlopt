@@ -60,6 +60,10 @@ class SinDataReader(DataReader):
             print('Unable to load the cache')
         return dfs
 
+#class ElectricityLoadDataReader(DataReader):
+#    def load_data(self, data_path):
+        
+
 ############################################################################################################
 class FitnessCache(object):
 
