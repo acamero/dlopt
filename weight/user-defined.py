@@ -97,7 +97,8 @@ if __name__ == '__main__':
     if not os.path.isfile(model_file):
         trainer = nn.BPTrainRNN(rnn_arch=decoded['rnn_arch'], 
                 drop_out=decoded['drop_out'], model_file=model_file, 
-                new=True, min_delta = config.min_delta, patience = config.patience)
+                new=True, min_delta = config.min_delta, patience = config.patience,
+                dense_activation = config.dense_activation)
         train_metrics = trainer.train(data_dict, 
                 x_features=config.x_features, 
                 y_features=config.y_features,                     

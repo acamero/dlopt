@@ -48,17 +48,46 @@ class SinDataReader(DataReader):
                 f_str = f.read()
                 params = json.loads(f_str)                
             f.close()
-            sin = np.sin( np.arange(start=params["training"]["start"], 
+            sin = np.sin( 2 * np.pi * params["freq"] * 
+                                    np.arange(start=params["training"]["start"], 
                                     stop=params["training"]["stop"], 
                                     step=params["training"]["step"] ) )
             dfs['train'] = pd.DataFrame(data=sin, columns=["sin"])
-            sin = np.sin( np.arange(start=params["testing"]["start"], 
+            sin = np.sin( 2 * np.pi * params["freq"] *
+                                    np.arange(start=params["testing"]["start"], 
                                     stop=params["testing"]["stop"], 
                                     step=params["testing"]["step"] ) )
             dfs['test'] = pd.DataFrame(data=sin, columns=["sin"])
         except IOError:
             print('Unable to load the cache')
         return dfs
+
+class FFSinDataReader(DataReader):
+    def load_data(self, data_path):
+        dfs = {}
+        try:
+            with open(data_path, 'r') as f:
+                f_str = f.read()
+                params = json.loads(f_str)                
+            f.close()
+            amplitudes = params["amplitudes"]
+            fundamental = params["fundamental"]
+            x = np.arange(start=params["training"]["start"], 
+                                    stop=params["training"]["stop"], 
+                                    step=params["training"]["step"] ) 
+            dfs['train'] = pd.DataFrame( pd.DataFrame( self.oboe_dtl(x, amplitudes, fundamental) ).sum() / np.sum(amplitudes), columns=["ff"])
+            dfs['train'] = dfs['train'].rename(columns={0:"ff"})
+            x = np.arange(start=params["testing"]["start"], 
+                                    stop=params["testing"]["stop"], 
+                                    step=params["testing"]["step"] ) 
+            dfs['test'] = pd.DataFrame( pd.DataFrame( self.oboe_dtl(x, amplitudes, fundamental) ).sum() / np.sum(amplitudes), columns=["ff"])
+        except IOError:
+            print('Unable to load the cache')
+        return dfs
+
+    def oboe_dtl(self, x, amplitudes, fundamental):
+        for _ix, _amp in enumerate(amplitudes):
+            yield( _amp * np.sin(2 * np.pi * (_ix+1) * fundamental * x) )
 
 #class ElectricityLoadDataReader(DataReader):
 #    def load_data(self, data_path):

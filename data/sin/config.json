@@ -1,1 +1,5 @@
-{"testing":{"start":100, "stop":120, "step":0.1}, "training":{"start":0, "stop":100, "step":0.1}}
+{
+"training":{"start":0, "stop":100, "step":0.1},
+"testing":{"start":100, "stop":120, "step":0.1}, 
+"freq":1
+}

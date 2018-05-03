@@ -49,13 +49,15 @@ def get_weights_array(weights_dict):
 ############################################################################################################
 class RNNBuilder(object):
 
-    def __init__(self, layers, weights=None):      
-        self.model = self._build_model( layers )
+    def __init__(self, layers, weights=None, dense_activation='tanh'):      
+        self.model = self._build_model( layers, dense_activation)
         if weights:
             self.model.set_weights( weights )
         self.trainable_params = int(np.sum([K.count_params(p) for p in set(self.model.trainable_weights)]))
+        self.model.summary()
+        #self.model_to_png("model.png")
 
-    def _build_model(self, layers):
+    def _build_model(self, layers, dense_activation):
         self.hidden_layers = len(layers) - 2
         self.layers = layers
         self.input_dim = layers[0]
@@ -75,7 +77,7 @@ class RNNBuilder(object):
                     #batch_size=batch_size, stateful=True,
                     return_sequences= True if i < len(layers) - 3 else False )
                     )
-        model.add(Dense(layers[-1], kernel_initializer='zeros', bias_initializer='zeros'))        
+        model.add(Dense(layers[-1], activation=dense_activation, kernel_initializer='zeros', bias_initializer='zeros'))        
         return model
 
     def update_weights(self, weights):
@@ -107,7 +109,7 @@ class RNNBuilder(object):
 class BPTrainRNN(object):
 
     def __init__(self, rnn_arch=[2,16,32,64,1], drop_out=0.3,
-            model_file="lstm_model.hdf5", new=True, min_delta = 0.0001, patience = 50):
+            model_file="lstm_model.hdf5", new=True, min_delta = 0.0001, patience = 50, dense_activation='tanh'):
         """Train a RNN using the input data
         rnn_arch: list containing the number of neurons per layer (the number of hidden layers
             is defined implicitly)
@@ -116,7 +118,7 @@ class BPTrainRNN(object):
         new: if True, a new model is created, otherwise an existent model is used        
         """        
         if new:
-            self.model = self._build_lstm_model(rnn_arch, drop_out)
+            self.model = self._build_lstm_model(rnn_arch, drop_out, dense_activation)
             adam = Adam(lr = 5e-5)
             self.model.compile(loss='mean_squared_error', optimizer=adam)
         else:
@@ -132,7 +134,7 @@ class BPTrainRNN(object):
         y = df[y_features].values[look_back:,:]
         return x,y
 
-    def _build_lstm_model(self, layers, drop_out):
+    def _build_lstm_model(self, layers, drop_out, dense_activation):
         model = Sequential()
         for i in range(len(layers) - 2):
             model.add(LSTM(
@@ -142,7 +144,7 @@ class BPTrainRNN(object):
                     return_sequences= True if i < len(layers) - 3 else False ))
             model.add(Dropout(drop_out))
     
-        model.add(Dense(layers[-1]))
+        model.add(Dense(layers[-1], activation=dense_activation))
         model.summary()
         return model
 

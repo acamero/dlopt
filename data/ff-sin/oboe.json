@@ -1,0 +1,6 @@
+{
+	"testing":{"start":10000, "stop":10010, "step":1}, 
+	"training":{"start":0, "stop":10000, "step":1}, 
+	"fundamental":440, 
+	"amplitudes":[1.00,0.95,2.10,0.20,0.25,0.25,0.60,0.30,0.20]
+}

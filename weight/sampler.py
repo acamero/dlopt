@@ -107,7 +107,7 @@ class Sampler(object):
 
     
     def _sample_architecture(self, layers, look_back):
-        rnn_solution = nn.RNNBuilder(layers)
+        rnn_solution = nn.RNNBuilder(layers, dense_activation=self.config.dense_activation)
         maes = list()
         for i in range(self.config.samples):
             weights = self._generate_weights(layers)
