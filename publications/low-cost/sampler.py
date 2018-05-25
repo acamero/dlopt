@@ -123,13 +123,8 @@ class Sampler(object):
         return metrics
 
     def sample(self):
-        if self.config.has('init_patch'):
-            init_patch = self.config.init_patch + [self.config.min_neurons]
-            init_layer = len(init_patch) -1
-        else:
-            init_patch = [self.config.min_neurons]
-            init_layer = 0
-        self._rec_sample(patch=init_patch, layer=init_layer)
+        init_patch = [self.config.min_neurons]
+        self._rec_sample(patch=init_patch)
 
     def _rec_sample(self, patch=[], layer=0):        
         if len(patch) < self.config.max_layers:

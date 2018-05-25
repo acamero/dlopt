@@ -38,7 +38,7 @@ def orthogonal(size, gain=1.0):
     return gain * q[:size[0], :size[1]]
 
 #########################################################################################################################
-class Sampler(object):
+class SampleArch(object):
 
     def __init__(self, data, config, seed=1234):
         if not self._validate_config(config):
@@ -62,19 +62,11 @@ class Sampler(object):
             return False
         if config.samples is None or config.samples < 1:
             return False
-        if config.min_neurons is None or config.min_neurons < 1:
+        if config.hidden_layers is None:
             return False
-        if config.max_neurons is None or config.max_neurons < config.min_neurons:
-            return False        
-        if config.min_layers is None or config.min_layers < 1:
-            return False
-        if config.max_layers is None or config.max_layers < config.min_layers:
-            return False       
         if config.params_neuron is None or config.params_neuron < 1:
             return False
-        if config.min_look_back is None or config.min_look_back < 1:
-            return False
-        if config.max_look_back is None or config.max_look_back < config.min_look_back:
+        if config.look_back is None or config.look_back < 1:
             return False
         if config.kernel_init_func is None:
             return False
@@ -123,13 +115,11 @@ class Sampler(object):
         return metrics
 
     def sample(self):
-        if self.config.has('init_patch'):
-            init_patch = self.config.init_patch + [self.config.min_neurons]
-            init_layer = len(init_patch) -1
-        else:
-            init_patch = [self.config.min_neurons]
-            init_layer = 0
-        self._rec_sample(patch=init_patch, layer=init_layer)
+        layers = [self.layer_in] + self.config.hidden_layers + [self.layer_out]
+        print('arch: ' + str(layers) + ' lb:' + str(self.config.look_back))
+        metrics = self._sample_architecture(layers, self.config.look_back)
+        print('mean:' + str(metrics['mean']) + ' sd:' + str(metrics['sd']) )
+        self._save_metrics(metrics)
 
     def _rec_sample(self, patch=[], layer=0):        
         if len(patch) < self.config.max_layers:
@@ -183,6 +173,6 @@ if __name__ == '__main__':
     reader =config.data_reader_class()
     data = reader.load_data( config.data_folder )
     # Select the optimization algorithm
-    sampler = Sampler(data, config, seed=FLAGS.seed)
+    sampler = SampleArch(data, config, seed=FLAGS.seed)
     sampler.sample()
 

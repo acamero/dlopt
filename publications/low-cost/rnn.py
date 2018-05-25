@@ -49,13 +49,12 @@ def get_weights_array(weights_dict):
 ############################################################################################################
 class RNNBuilder(object):
 
-    def __init__(self, layers, weights=None, dense_activation='tanh', verbose=0):      
+    def __init__(self, layers, weights=None, dense_activation='tanh'):      
         self.model = self._build_model( layers, dense_activation)
         if weights:
             self.model.set_weights( weights )
         self.trainable_params = int(np.sum([K.count_params(p) for p in set(self.model.trainable_weights)]))
-        if verbose:
-            self.model.summary()
+        self.model.summary()
         #self.model_to_png("model.png")
 
     def _build_model(self, layers, dense_activation):
@@ -107,8 +106,6 @@ class RNNBuilder(object):
     def model_to_png(self, out_file, shapes=True):
         plot_model( self.model, to_file=out_file, show_shapes=shapes)
 
-
-
 class BPTrainRNN(object):
 
     def __init__(self, rnn_arch=[2,16,32,64,1], drop_out=0.3,
@@ -151,7 +148,7 @@ class BPTrainRNN(object):
         model.summary()
         return model
 
-    def train(self, dfs, x_features, y_features, epoch=100, val_split=0.3, batch_size=512, look_back=50, verbose=0):
+    def train(self, dfs, x_features, y_features, epoch=100, val_split=0.3, batch_size=512, look_back=50):
         """Train a RNN using the input data
         dfs: a dictionary of data frames containing the data
         x_features: column names of the data frames used as input
@@ -163,12 +160,12 @@ class BPTrainRNN(object):
         """
         mse_loss_lstm, mae_loss_lstm, train_time = self._train_on_data(dfs['train'], 
                     dfs['test'], x_features, y_features,
-                    epoch, val_split, batch_size, look_back, verbose)
+                    epoch, val_split, batch_size, look_back)
         return {'mse':mse_loss_lstm, 'mae':mae_loss_lstm,
             'trainable_vars':self.trainable_count,'train_time':train_time}
 
     def _train_on_data(self, train_set, test_set, x_features, y_features,
-            epoch, val_split, batch_size, look_back, blind=True, verbose=0):
+            epoch, val_split, batch_size, look_back, blind=True):
         X_train, y_train = self._process_data(train_set, 
                 x_features, y_features, look_back)
         start = time.time()
@@ -177,7 +174,7 @@ class BPTrainRNN(object):
                     X_train,
                     y_train, 
                     batch_size=batch_size,
-                    verbose=verbose,
+                    verbose=0,
                     nb_epoch=epoch,
                     validation_split=val_split,
                     callbacks= [self.early_stopping,  self.checkpointer],

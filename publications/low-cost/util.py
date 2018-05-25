@@ -171,9 +171,6 @@ class Config(object):
 
     def set(self, attr, value):
         setattr(self, attr, value)
-
-    def has(self, attr):
-        return hasattr(self, attr)
     
     def load_from_file(self, filename):
         json_config = {}
