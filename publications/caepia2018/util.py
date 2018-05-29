@@ -5,7 +5,6 @@ import glob
 import json
 from abc import ABC, abstractmethod
 from dateutil.parser import parse
-from datetime import date, datetime
 
 ############################################################################################################
 def mse_loss(y_predict, y):
@@ -90,52 +89,8 @@ class FFSinDataReader(DataReader):
         for _ix, _amp in enumerate(amplitudes):
             yield( _amp * np.sin(2 * np.pi * (_ix+1) * fundamental * x) )
 
-
-
-import pandas as pd
-import numpy as np
-data_path = "/home/andu/Documents/PHD/datasets/UCI/Household/household_power_consumption.txt"
-data_path = "/home/andu/git/dlopt/data/household/"
-class HouseholdDataReader(DataReader):
-    _sub = '_mean_norm'
-    def load_data(self, data_path):
-         dfs = {}
-         dfs['train'] = pd.read_csv(data_path + 'household_train' + self._sub + '.csv', sep=",")
-         dfs['test'] = pd.read_csv(data_path + 'household_test' + self._sub + '.csv', sep=",")
-         return dfs
-
-class HouseholdRawDataReader(DataReader):
-    _year = 2000 # dummy leap year to allow input X-02-29 (leap day)
-    _seasons = [(0, (date(_year,  1,  1),  date(_year,  3, 20))),    # winter
-           (1, (date(_year,  3, 21),  date(_year,  6, 20))),         # spring
-           (2, (date(_year,  6, 21),  date(_year,  9, 22))),         # summer
-           (3, (date(_year,  9, 23),  date(_year, 12, 20))),         # autumn
-           (0, (date(_year, 12, 21),  date(_year, 12, 31)))]         # winter
-    def __init__(self, split=0.8):
-        self._split = split
-    def _get_season(self, now):
-        now = pd.to_datetime(now)
-        if isinstance(now, datetime):
-            now = now.date()
-        now = now.replace(year=self._year)
-        return next(season for season, (start, end) in self._seasons if start <= now <= end)
-    def load_data(self, data_path):
-         df = pd.read_csv(data_path, sep=";", na_values={'?'})
-         #df = df.fillna(df.mean(axis=0, numeric_only=True))
-         df = df.fillna(method='pad')
-         df = df.fillna(method='bfill')
-         df['Datetime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'], format='%d/%m/%Y %H:%M:%S')
-         df = df.set_index(df['Datetime'].values)
-         df.drop(['Date','Time', 'Datetime'], axis=1, inplace=True)
-         df['Week_day'] = df.index.weekday
-         df['Time'] = df.index.hour + df.index.minute /60
-         df['Season'] = list(map(self._get_season, df.index.values))
-         df = (df - df.mean()) / (df.max() - df.min())
-         pos = int(df.shape[0] * self._split)
-         dfs = {}
-         dfs['train'] = df.ix[0:pos]
-         dfs['test'] = df.ix[pos:]
-         return dfs
+#class ElectricityLoadDataReader(DataReader):
+#    def load_data(self, data_path):
         
 
 ############################################################################################################

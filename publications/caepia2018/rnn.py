@@ -145,7 +145,8 @@ class BPTrainRNN(object):
                     output_dim=layers[i+1], 
                     #stateful=True,
                     return_sequences= True if i < len(layers) - 3 else False ))
-            model.add(Dropout(drop_out))    
+            model.add(Dropout(drop_out))
+    
         model.add(Dense(layers[-1], activation=dense_activation))
         model.summary()
         return model
