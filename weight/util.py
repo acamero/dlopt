@@ -85,17 +85,11 @@ class FFSinDataReader(DataReader):
         except IOError:
             print('Unable to load the cache')
         return dfs
-
     def oboe_dtl(self, x, amplitudes, fundamental):
         for _ix, _amp in enumerate(amplitudes):
             yield( _amp * np.sin(2 * np.pi * (_ix+1) * fundamental * x) )
 
 
-
-import pandas as pd
-import numpy as np
-data_path = "/home/andu/Documents/PHD/datasets/UCI/Household/household_power_consumption.txt"
-data_path = "/home/andu/git/dlopt/data/household/"
 class HouseholdDataReader(DataReader):
     _sub = '_mean_norm'
     def load_data(self, data_path):
