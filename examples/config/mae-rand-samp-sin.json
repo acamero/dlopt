@@ -1,0 +1,14 @@
+{
+"action_class": "dlopt.tools.architecture.MAERandomSampler",
+"listing_class": "dlopt.sampling.FullSpaceListing",
+"listing_restrictions" : {"min_neurons": 1, 
+                          "max_neurons": 2,
+                          "min_layers": 1,
+                          "max_layers": 2},
+"samples": 30,
+"min_look_back": 1,
+"max_look_back": 1,
+"x_features": ["sin"],
+"y_features": ["sin"],
+"nn_builder_class": "dlopt.nn.RNNBuilder"
+}
