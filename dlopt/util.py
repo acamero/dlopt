@@ -1,6 +1,8 @@
 import numpy as np
 import json
 import importlib
+from abc import ABC, abstractmethod
+import json
 
 
 def random_uniform(size,
@@ -107,6 +109,9 @@ class Config(object):
             attr):
         return hasattr(self, attr)
 
+    def as_dict(self):
+        return self.__dict__
+
     def load_from_file(self,
                        filename):
         json_config = {}
@@ -134,3 +139,41 @@ class Config(object):
                     setattr(self, key, locals()[json_config[key]])
             else:
                 setattr(self, key, json_config[key])
+
+
+class OutputLogger(ABC):
+    """ Abstract class to encapsulate the preferred output method
+    """
+    @abstractmethod
+    def output(self,
+               **kwargs):
+        raise NotImplemented("output function is not implemented")
+
+
+class JSONOutput(OutputLogger):
+    """ Print a set of results into a JSON file
+    """
+    def __init__(self,
+                 **kwargs):
+        np.set_printoptions(threshold=np.inf)
+        if 'filename' not in kwargs:
+            raise Exception("JSONOutput init error: 'filename' missing")
+        self.filename = kwargs['filename']
+
+    def output(self,
+               **kwargs):
+        try:
+            with open(self.filename, 'a') as f:
+                f.write(json.dumps(kwargs) + '\n')
+            f.close()
+        except IOError:
+            print('IOError when writing to ' + self.filename)
+
+
+class DataLoader(ABC):
+    """ Abstract class to encapsulate the data loading process
+    """
+    @abstractmethod
+    def load(self,
+             **kwargs):
+        raise NotImplemented("DataLoader not implemented")

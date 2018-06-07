@@ -6,7 +6,7 @@ from scipy.stats import truncnorm
 from abc import ABC, abstractmethod
 
 
-class ArchitectureSampling(object):
+class RandomSampling(object):
     """ Perform a random sampling using a given metric"""
     def __init__(self,
                  seed=1234):
@@ -47,7 +47,7 @@ class ArchitectureListing(ABC):
     """
     @abstractmethod
     def list_architectures(self,
-                           *args):
+                           **kwargs):
         """ Generate a list of architectures given a set of
         restrictions
         """
@@ -69,8 +69,8 @@ class FullSpaceListing(ArchitectureListing):
         pass
 
     def list_architectures(self,
-                           *args):
-        self.restrictions.update(*args)
+                           **kwargs):
+        self.restrictions.update(kwargs)
         if self.restrictions['init_arch'] is not None:
             init_patch = (self.restrictions['init_arch']
                           + [self.restrictions['min_neurons']])
@@ -107,7 +107,7 @@ class MAERandomSampling(object):
     """
     def __init__(self,
                  seed=1234):
-        sampler = ArchSampling(seed)
+        self.sampler = RandomSampling(seed)
 
     def fit(self,
             model,
@@ -118,13 +118,13 @@ class MAERandomSampling(object):
             truncated_upper=2.0,
             threshold=0.01,
             **kwargs):
-        samples = sampler.sample(model,
-                                 ut.random_normal,
-                                 num_samples,
-                                 x_df,
-                                 y_df,
-                                 ut.mae_loss,
-                                 **kwargs)
+        samples = self.sampler.sample(model,
+                                      ut.random_normal,
+                                      num_samples,
+                                      x_df,
+                                      y_df,
+                                      ut.mae_loss,
+                                      **kwargs)
         """
         The standard form of this distribution is a standard normal truncated
         to the range [a, b] — notice that a and b are defined over the domain
@@ -134,18 +134,17 @@ class MAERandomSampling(object):
         a, b = (myclip_a - my_mean) / my_std, (myclip_b - my_mean) / my_std
         """
         mean = np.mean(samples)
-        std = np.mean(samples)
+        std = np.std(samples)
         a = (truncated_lower - mean) / std
         b = (truncated_upper - mean) / std
-        loc, scale = truncnorm.fit_loc_scale(samples,
-                                             a,
-                                             b)
         p_threshold = truncnorm.cdf(threshold,
                                     a,
                                     b,
-                                    loc=loc,
-                                    scale=scale)
+                                    loc=mean,
+                                    scale=std)
+        log_p = np.log(p_threshold)
         return {'p': p_threshold,
-                'loc': loc,
-                'scale': scale,
+                'log_p': log_p,
+                'mean': mean,
+                'std': std,
                 'samples': samples}

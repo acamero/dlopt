@@ -1,0 +1,8 @@
+__pycache__
+*.pyc
+*.hdf5
+*.json
+*.spec
+build.sh
+dist/
+build/

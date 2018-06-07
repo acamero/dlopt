@@ -2,71 +2,114 @@ from .. import sampling as samp
 from .. import util as ut
 from .. import nn as nn
 from . import base as b
+import pandas as pd
+import numpy as np
 
 
-class MAERandomSampler(b.ActionBase):
+class TimeSeriesMAERandomSampler(b.ActionBase):
     """ MAE Random Sampler
 
     Perform a MAE random sampling over the list of architectures or over a
     search space definition passed in the Configuration.
 
-    architectures or architecture_listing
-    samples
+    Mandatory parameters:
+    architectures or (listing_class and listing_params)
+    data_loader_class and data_loader_params
     min_look_back
     max_look_back
+    nn_builder_class
+    num_samples
+    x_features
+    y_features
+
+    Optional:
+    output_logger_class and output_logger_params
+    **any other set of params supported by the classes/functions
     """
     def __init__(self,
-                 data,
-                 config,
-                 seed=1234):
-        super().__init__(data, config, seed)
-        if not self._is_valid_config(config):
-            raise Exception('The configuration is not valid')
-        self.layer_in = len(config.x_features)
-        self.layer_out = len(config.y_features)
+                 seed=1234,
+                 verbose=0):
+        super().__init__(seed, verbose)
 
     def _is_valid_config(self,
-                         config):
-        if (not config.has('architectures') and
-                not config.has('listing_class')):
+                         **config):
+        if ('architectures' not in config and
+                'listing_class' not in config):
             return False
-        if config.has('listing_class'):
-            if not issubclass(config.listing_class,
+        if 'listing_class' in config:
+            if not issubclass(config['listing_class'],
                               samp.ArchitectureListing):
-                print(type(config.listing_class))
                 return False
-            if not config.has('listing_restrictions'):
+            if 'listing_params' not in config:
                 return False
-        if (not config.has('samples') or
-                config.samples < 1):
+        if 'data_loader_class' in config:
+            if not issubclass(config['data_loader_class'],
+                              ut.DataLoader):
+                return False
+            if 'data_loader_params' not in config:
+                return False
+        else:
             return False
-        if (not config.has('min_look_back') or
-                config.min_look_back < 1):
+        if ('min_look_back' not in config or
+                config['min_look_back'] < 1):
             return False
-        if (not config.has('max_look_back') or
-                config.max_look_back < config.min_look_back):
+        if ('max_look_back' not in config or
+                config['max_look_back'] < config['min_look_back']):
             return False
-        if (not config.has('nn_builder_class') or
-                not issubclass(config.nn_builder_class,
+        if ('nn_builder_class' not in config or
+                not issubclass(config['nn_builder_class'],
                                nn.NNBuilder)):
+            return False
+        if ('num_samples' not in config or
+                config['num_samples'] < 1):
             return False
         return True
 
     def do_action(self,
-                  *args):
+                  **kwargs):
+        if not self._is_valid_config(**kwargs):
+            raise Exception('The configuration is not valid')
+        if ('output_logger_class' in kwargs and
+                'output_logger_params' in kwargs):
+            self._set_output(kwargs['output_logger_class'],
+                             kwargs['output_logger_params'])
+        data_loader = kwargs['data_loader_class']()
+        data = data_loader.load(**kwargs['data_loader_params'])
+        layer_in = len(kwargs['x_features'])
+        layer_out = len(kwargs['y_features'])
         architectures = None
-        if self.config.has('listing_class'):
-            listing = self.config.listing_class()
+        if 'listing_class' in kwargs:
+            listing = kwargs['listing_class']()
             architectures = listing.list_architectures(
-                self.config.listing_restrictions)
+                **kwargs['listing_params'])
         else:
-            architectures = self.config.architectures
+            architectures = kwargs['architectures']
         if architectures is None:
-            raise Exception('No architectures passed')
+            raise Exception('No architectures found')
+        nn_builder = kwargs['nn_builder_class']()
         for architecture in architectures:
             # Build the network
-            nn_builder = self.config.nn_builder_class()
-            layers = [self.layer_in] + architecture + [self.layer_out]
-            model = nn_builder.build_model(layers, verbose=1)
+            layers = [layer_in] + architecture + [layer_out]
+            model = nn_builder.build_model(layers,
+                                           verbose=self.verbose,
+                                           **kwargs)
             # do the sampling
-            # store the results
+            for look_back in range(kwargs['min_look_back'],
+                                   kwargs['max_look_back']+1):
+                df_x, df_y = ut.chop_data(data,
+                                          kwargs['x_features'],
+                                          kwargs['y_features'],
+                                          look_back)
+                sampler = samp.MAERandomSampling(self.seed)
+                metrics = sampler.fit(model=model,
+                                      x_df=df_x,
+                                      y_df=df_y,
+                                      **kwargs)
+                results = {}
+                results['metrics'] = metrics
+                results['architecture'] = layers
+                results['look_back'] = look_back
+                self._output(**results)
+                if self.verbose:
+                    print(results)
+            del model

@@ -5,17 +5,27 @@ from .. import util as ut
 class ActionBase(object):
     """ Base class for the tools defined in this package
     """
+    _output_logger = None
+
     def __init__(self,
-                 data,
-                 config,
-                 seed):
-        if not isinstance(config, ut.Config):
-            raise Exception('The configuration is not valid')
-        self.config = config
+                 seed,
+                 verbose):
         self.seed = seed
-        self.data = data
+        self.verbose = verbose
 
     @abstractmethod
     def do_action(self,
-                  *args):
+                  **kwargs):
         raise NotImplemented('do_action is not implemented')
+
+    def _output(self,
+                **kwargs):
+        if self._output_logger is None:
+            print(str(kwargs))
+        else:
+            self._output_logger.output(**kwargs)
+
+    def _set_output(self,
+                    output_logger_class,
+                    output_logger_params):
+        self._output_logger = output_logger_class(**output_logger_params)

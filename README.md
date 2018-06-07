@@ -1,18 +1,17 @@
-# Deep learning architecture optimization
+# DLOPT: Deep Learning Optimization
 
-Metaheuristic procedures for recurrent neural network (RNN) optimization.
+Python library for artificial neural network (NN) optimization.
 
 
 ## Index
 
-This respository contains several deliverables associated to the main topic (RNN optimization). The main structure is as follows:
+This respository contains several deliverables associated to the main topic (NN optimization). The main structure is as follows:
 
-* **architecture**: metaheuristic based RNN architecture optimization and backpropagation training.
 * **data**: datasets used in publications.
+* **dlopt**: main library
 * **etc**: analysis, useful scripts, and other stuff.
+* **examples**: a quick guide on using DLOPT
 * **publications**: stand alone deliverables related to scientific publications. Please refer to [Publications](#publications).
-* **weight**: metaheuristic based RNN architecture and weights optimization.
-
 
 
 ## Getting Started
@@ -21,7 +20,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-Each deliverable (sub project) contains a **requirements.txt** file listing the Python packages needed to tun the code.
+The main folder contains a **requirements.txt** file listing the Python packages needed to tun the code.
 
 ### Installing
 
@@ -29,15 +28,17 @@ Clone the repository on your local machine, install the dependencies (you may wa
 
 ### Building
 
-To build (binary) ann application (e.g. optimizer.py) you could use **pyinstaller**. Remember to add the path to required libraries and any hidden import, for example:
+To build a binary application you could use **pyinstaller**. Remember to add the path to required libraries and any hidden import, for example:
 
 ```
 pyinstaller optimizer.py -F --path ../env/lib/python3.5/ --hidden-import algorithms
 ```
 
+
 ## Publications
 
-* Camero A., Toutouh, J., Stolfi, D.H., and Alba, E. Evolutionary Deep Learning for Car Park Occupancy Prediction in Smart Cities. To appear in Proc. of Learning and Intelligent OptimizatioN Conference (LION 12). 2018.
+* Camero, A., Toutouh, J., Stolfi, D.H., and Alba, E. Evolutionary Deep Learning for Car Park Occupancy Prediction in Smart Cities. To appear in Proc. of Learning and Intelligent OptimizatioN Conference (LION 12). 2018.
+* Camero, A., Toutouh, J., and Alba, E. Low-cost recurrent neural network expected performance evaluation. arXiv preprint arXiv:1805.07159 (may 2018)
 
 
 ## Contributing
@@ -52,11 +53,10 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 Please see the list of scientific publications for more information about people who has participated in this project or visit [NEO](http://neo.lcc.uma.es) research webpage.
 
 
-
-
 ## License
 
 This project is licensed under the GNU GPL v3 license - see the [LICENSE.md](LICENSE.md) file for details
+
 
 ## Acknowledgments
 

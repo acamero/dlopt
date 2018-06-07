@@ -19,6 +19,7 @@ pandas==0.19.2
 pefile==2017.11.5
 pep8==1.7.1
 protobuf==3.5.0.post1
+pycodestyle==2.4.0
 pydot==1.2.3
 PyInstaller==3.3.1
 pymongo==3.6.0

@@ -92,9 +92,9 @@ class RNNBuilder(NNBuilder):
                 # batch_size=batch_size, stateful=True,
                 return_sequences=True if i < len(layers) - 3 else False))
         self.model.add(Dense(layers[-1],
-                        activation=dense_activation,
-                        kernel_initializer='zeros',
-                        bias_initializer='zeros'))
+                       activation=dense_activation,
+                       kernel_initializer='zeros',
+                       bias_initializer='zeros'))
         if weights:
             self.model.set_weights(weights)
         self.trainable_params = int(np.sum(
