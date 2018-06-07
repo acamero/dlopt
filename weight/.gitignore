@@ -1,9 +1,0 @@
-__pycache__
-*.pyc
-*.hdf5
-models/
-results/
-dist/
-build/
-*.spec
-build.sh
