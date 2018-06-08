@@ -155,7 +155,7 @@ class TrainNN(object):
               batch_size=20,
               loss='mean_squared_error',
               shuffle=False):
-        self.model.compile(loss='mean_squared_error',
+        self.model.compile(loss=loss,
                            optimizer=self.optimizer)
         self.trainable_count = int(np.sum(
             [K.count_params(p) for p in set(self.model.trainable_weights)]))

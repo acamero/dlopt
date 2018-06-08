@@ -2,7 +2,7 @@
 "action_class": "dlopt.tools.architecture.TimeSeriesMAERandomSampler",
 "listing_class": "dlopt.sampling.FullSpaceListing",
 "listing_params" : {"min_neurons": 1, 
-                          "max_neurons": 2,
+                          "max_neurons": 10,
                           "min_layers": 1,
                           "max_layers": 2},
 "num_samples": 30,
