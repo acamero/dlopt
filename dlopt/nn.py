@@ -90,7 +90,7 @@ class RNNBuilder(NNBuilder):
                 # Uncomment to use last batch state to init next training step.
                 # Specify shuffle=False when calling fit()
                 # batch_size=batch_size, stateful=True,
-                return_sequences=True if i < len(layers) - 3 else False))
+                return_sequences=True if i < (len(layers) - 3) else False))
         self.model.add(Dense(layers[-1],
                        activation=dense_activation,
                        kernel_initializer='zeros',

@@ -1,48 +1,56 @@
 import numpy as np
 from . import optimization as op
 from abc import ABC, abstractmethod
+from copy import deepcopy
 
 
-def gaussianMutation(solution,
+def gaussianMutation(encoded,
                      p_mutation,
                      mutation_scale_factor=1):
-    """" Elemtn-wise Gaussian mutation
+    """ Element-wise Gaussian mutation
     Performs a Gaussian mutation on the i-th encoded variable
     with a probability p_mutation.
-    """"
-    for i in range(len(solution.encoded)):
+    """
+    for i in range(len(encoded)):
         if np.random.rand() < p_mutation:
-            solution.encoded[i] += np.random.normal(
+            encoded[i] += np.random.normal(
                 scale=mutation_scale_factor)
 
 
-def uniformLengthMutation(solution,
+def uniformLengthMutation(encoded,
                           p_mutation):
     """ With p_mutation probability copy/delete an encoded variable
     """
     if np.random.rand() < p_mutation:
         position = np.random.randint(0,
-                                     len(solution.encoded))
+                                     len(encoded))
         if np.random.rand() < 0.5:
-            solution.encoded.pop(position)
+            encoded.pop(position)
         else:
-            solution.encoded.insert(position,
-                                    solution.encoded[position])
+            encoded.insert(position,
+                           encoded[position])
 
 
 def binaryTournament(population):
+    """ Binary tournament. Selects two solutions from the population
+    and compare them. Returns the fittest one.
+    """
     positions = np.random.randint(low=0,
                                   high=len(population),
                                   size=2)
     if population[positions[0]].comparedTo(
             population[positions[1]]) > 0:
-        return deepcopy(population[position[0]])
+        return deepcopy(population[positions[0]])
     else:
-        return deepcopy(population[position[1]])
+        return deepcopy(population[positions[1]])
 
 
 def elitistPlusReplacement(population,
                            offspring):
+    """ Generates a new population (of the same size as the
+    original population), selecting the fittest solution from
+    the population and the offspring.
+    """
     temporal = population + offspring
     temporal.sort(reverse=True)
     return temporal[0:len(population)]
@@ -55,9 +63,11 @@ class EABase(op.ModelOptimization):
 
     def __init__(self,
                  problem,
-                 seed=None):
+                 seed=None,
+                 verbose=0):
         super().__init__(problem,
-                         seed)
+                         seed,
+                         verbose)
 
     @abstractmethod
     def mutate(self,
@@ -82,6 +92,8 @@ class EABase(op.ModelOptimization):
                       for _ in range(self.params['population_size'])]
         [self.problem.evaluate(solution) for solution in population]
         evaluations = len(population)
+        if self.verbose:
+            print("Initial population evaluated")
         while evaluations < self.params['max_eval']:
             offspring = [self.select(population)
                          for _ in range(self.params['offspring_size'])]
@@ -91,35 +103,6 @@ class EABase(op.ModelOptimization):
             pop = self.replace(population,
                                offspring)
             evaluations += len(offspring)
-        return population
-
-
-class MuPlusLambda(EABase):
-    """ (Mu+Lambda) basic algorithm
-    """
-    def __init__(self,
-                 problem,
-                 seed=None):
-        super().__init__(problem,
-                         seed)
-        self.params.update({'p_mutation_i': 0.1,
-                            'p_mutation_e': 0.1,
-                            'mutation_scale_factor': 2})
-
-    def mutate(self,
-               solution):
-        gaussianMutation(solution,
-                         self.params['p_mutation_i'],
-                         self.params['mutation_scale_factor'])
-        uniformCopyDeleteMutation(solution,
-                                  self.params['p_mutation_e'])
-
-    def select(self,
-               population):
-        return binaryTournament(population)
-
-    def replace(self,
-                population,
-                offspring):
-        return elitistPlusReplacement(population,
-                                      offspring)
+            if self.verbose:
+                print(str(evaluations) + " evaluations")
+        return population[0]

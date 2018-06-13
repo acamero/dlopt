@@ -9,10 +9,11 @@ from abc import ABC, abstractmethod
 class RandomSampling(object):
     """ Perform a random sampling using a given metric"""
     def __init__(self,
-                 seed=1234):
-        np.random.seed(seed)
-        rd.seed(seed)
-        tf.set_random_seed(seed)
+                 seed=None):
+        if seed is not None:
+            np.random.seed(seed)
+            rd.seed(seed)
+            tf.set_random_seed(seed)
 
     def sample(self,
                model,
@@ -99,16 +100,27 @@ class FullSpaceListing(ArchitectureListing):
         return architectures
 
 
-class MAERandomSampling(object):
+class RandomSamplingFit(ABC):
+    def __init__(self,
+                 seed=None):
+        self.sampler = RandomSampling(seed)
+
+    @abstractmethod
+    def fit(self,
+            model,
+            num_samples,
+            x_df,
+            y_df,
+            **kwargs):
+        raise Exception("'fit' is not implemented")
+
+
+class MAERandomSampling(RandomSamplingFit):
     """ Perform a MAE random sampling.
 
     The sampling uses MAE as the metric, random_normal initialization, and
     fits a truncated normal distribution to the samples.
     """
-    def __init__(self,
-                 seed=1234):
-        self.sampler = RandomSampling(seed)
-
     def fit(self,
             model,
             num_samples,

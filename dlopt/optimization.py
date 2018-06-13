@@ -12,15 +12,17 @@ class ModelOptimization(ABC):
     """
     def __init__(self,
                  problem,
-                 seed=None):
+                 seed=None,
+                 verbose=0):
         if seed is not None:
             np.random.seed(seed)
             rd.seed(seed)
             tf.set_random_seed(seed)
-        if not issubclass(problem,
+        if not isinstance(problem,
                           Problem):
-            raise Exception("A valid problem must be provided)
+            raise Exception("A valid problem must be provided")
         self.problem = problem
+        self.verbose = verbose
 
     @abstractmethod
     def optimize(self,
@@ -32,36 +34,98 @@ class Problem(ABC):
     """ Problem base class
     """
     def __init__(self,
-                 target):
-        self.target = tuple(target)
+                 data,
+                 targets,
+                 verbose=0,
+                 **kwargs):
+        for t in targets:
+            if np.abs(targets[t]) != 1:
+                raise Exception("Target must be 1 or -1")
+        self.targets = targets
+        self.data = data
+        self.kwargs = kwargs
+        self.verbose = verbose
 
     @abstractmethod
     def evaluate(self,
                  solution):
+        """ Assign a set of fitness values to the
+        given solution
+        """
         raise Exception
 
     @abstractmethod
     def next_solution(self):
+        """ Generates a random solution
+        """
         raise Exception
 
     @abstractmethod
-    def validate_solution(self):
+    def validate_solution(self,
+                          solution):
+        """ Validates and corrects (if necessary)
+        the solution.
+        """
+        raise Exception
+
+    @abstractmethod
+    def decode_solution(self,
+                        solution):
+        """ Decodes the solution into a model
+        """
+        raise Exception
+
+    @abstractmethod
+    def solution_to_dict(self,
+                         solution):
+        """ Decodes the solution into a model
+        description dictionary
+        """
         raise Exception
 
 
 class Solution(object):
     """ Solution
-    target: tuple of objective targets (-1: minimize, 1: maximize)
-    fitness: list of evaluated values for each objective
-    encoded: solution represented as a list of variables
     """
     def __init__(self,
-                 target):
-        """ target: list of targets. -1: minimize, 1 maximize
+                 targets,
+                 variable_names):
+        """ Input:
+        target: dict of targets. -1: minimize, 1 maximize
+            e.g. {'p': 1, 'mean': 1}
+        variable_names: list
         """
-        self.target = tuple(target)
-        self.fitness = None
-        self.encoded = None
+        self.targets = targets
+        self.fitness = {}
+        self.encoded = {}
+        for variable_name in variable_names:
+            self.encoded[variable_name] = None
+
+    def get_encoded(self,
+                    variable_name):
+        """ Returns the 'encoded_variable'
+        """
+        return self.encoded[variable_name]
+
+    def set_encoded(self,
+                    variable_name,
+                    value):
+        self.encoded[variable_name] = value
+
+    def get_fitness(self,
+                    target):
+        if target in self.targets:
+            return self.fitness[target]
+        else:
+            raise Exception("'target' does not match")
+
+    def set_fitness(self,
+                    target,
+                    value):
+        if target in self.targets:
+            self.fitness[target] = value
+        else:
+            raise Exception("'target' does not match")
 
     def comparedTo(self,
                    solution):
@@ -73,14 +137,16 @@ class Solution(object):
         > 0  if (a) fitness values are 'better' than (b)
         Exception if (a) and (b) are not comparables
         """
-        if self.target != solution.target:
+        if len(set(self.targets.items()) &
+               set(solution.targets.items())) != len(self.targets):
             raise Exception("Solutions are not comparables")
         if len(self.fitness) != len(solution.fitness):
             raise Exception("Solutions are not comparables")
-        differences = np.subtract(self.fitness,
-                                  solution.fitness)
-        differences = np.multiply(differences,
-                                  self.target)
+        differences = []
+        for t in self.fitness:
+            differences.append(self.fitness[t] * self.targets[t] -
+                               solution.fitness[t] * solution.targets[t])
+        differences = np.array(differences)
         a_up = sum(differences > 0)
         b_up = sum(differences < 0)
         return (a_up - b_up)
