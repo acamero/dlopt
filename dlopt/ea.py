@@ -57,9 +57,24 @@ def elitistPlusReplacement(population,
 
 
 class EABase(op.ModelOptimization):
-    params = {'population_size': 1,
+    """ Evolutionary Algorithm base class.
+    An initial population (of size equal to population_size) is
+    evaluated using the problem's fitness function. Then, an offspring
+    (of size equal to offspring_size) is created using the 'select'
+    and 'mutate' functions, and evaluated. A new population is
+    generated using the 'replace' criteria. This process is
+    repeated for 'max_eval' number of times (number of solution
+    evaluations).
+    If 'max_restart' is greater than 0, the evolutionary process
+    is restarted (once 'max_eval' evaluations are done). The new
+    evolutionary process recieves 'migration_population_size'
+    solutions from the previous process.
+    """
+    params = {'population_size': 2,
               'offspring_size': 1,
-              'max_eval': 1}
+              'max_eval': 1,
+              'max_restart': 0,
+              'migration_population_size': 1}
 
     def __init__(self,
                  problem,
@@ -85,24 +100,54 @@ class EABase(op.ModelOptimization):
                 offspring):
         raise Exception
 
-    def optimize(self,
-                 **kwargs):
-        self.params.update(kwargs)
-        population = [self.problem.next_solution()
-                      for _ in range(self.params['population_size'])]
+    def _go_one_step(self,
+                     seed_population):
+        population = (
+            seed_population[:self.params['migration_population_size']] +
+            [self.problem.next_solution()
+             for _ in range(self.params['population_size'] -
+                            self.params['migration_population_size'])])
         [self.problem.evaluate(solution) for solution in population]
         evaluations = len(population)
+        generation = 0
         if self.verbose:
-            print("Initial population evaluated")
+            print("Generation " + str(generation))
+            for p in population:
+                print("fitness:", p.fitness,
+                      "encoded:", p.encoded)
         while evaluations < self.params['max_eval']:
             offspring = [self.select(population)
                          for _ in range(self.params['offspring_size'])]
             [self.mutate(x) for x in offspring]
+            [x.clear_fitness() for x in offspring]
             [self.problem.validate_solution(x) for x in offspring]
             [self.problem.evaluate(x) for x in offspring]
-            pop = self.replace(population,
-                               offspring)
+            if self.verbose:
+                print("Offspring " + str(generation))
+                for o in offspring:
+                    print("fitness:", o.fitness,
+                          "solution:", o.encoded)
+            population = self.replace(population,
+                                      offspring)
             evaluations += len(offspring)
+            generation += 1
             if self.verbose:
                 print(str(evaluations) + " evaluations")
+                print("Generation " + str(generation))
+                for p in population:
+                    print("fitness:", p.fitness,
+                          "solution:", p.encoded)
+        return population
+
+    def optimize(self,
+                 **kwargs):
+        self.params.update(kwargs)
+        population = [self.problem.next_solution()
+                      for _ in range(self.params['migration_population_size'])]
+        restart = 0
+        while restart <= self.params['max_restart']:
+            if self.verbose and restart > 0:
+                print("Restart " + str(restart))
+            population = self._go_one_step(population)
+            restart += 1
         return population[0]

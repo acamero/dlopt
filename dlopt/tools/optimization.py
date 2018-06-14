@@ -64,10 +64,11 @@ class Optimizer(b.ActionBase):
         data_loader = kwargs['data_loader_class']()
         data = data_loader.load(**kwargs['data_loader_params'])
         problem = kwargs['problem_class'](data,
+                                          verbose=self.verbose,
                                           **kwargs)
         optimizer = kwargs['algorithm_class'](problem,
-                                              self.seed,
-                                              self.verbose)
+                                              seed=self.seed,
+                                              verbose=self.verbose)
         solution = optimizer.optimize(**kwargs)
         desc = problem.solution_to_dict(solution)
         self._output(**desc)

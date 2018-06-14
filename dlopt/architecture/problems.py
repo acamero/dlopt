@@ -53,18 +53,24 @@ class TimeSeriesMAERandSampProblem(op.Problem):
 
     def evaluate(self,
                  solution):
-        model = self.decode_solution(solution)
+        if solution.is_evaluated():
+            if self.verbose > 1:
+                print('Solution already evaluated')
+            return
+        model, layers, look_back = self.decode_solution(solution)
         df_x, df_y = ut.chop_data(self.data,
                                   self.x_features,
                                   self.y_features,
-                                  solution.get_encoded('architecture')[0])
+                                  look_back)
         results = self.sampler.fit(model,
                                    self.num_samples,
                                    df_x,
                                    df_y,
                                    **self.kwargs)
-        if self.verbose:
-            print(results)
+        if self.verbose > 1:
+            print({'layers': layers,
+                   'look_back': look_back,
+                   'results': results})
         for target in self.targets:
             solution.set_fitness(target,
                                  results[target])
@@ -74,14 +80,14 @@ class TimeSeriesMAERandSampProblem(op.Problem):
                                ['architecture'])
         num_layers = np.random.randint(low=self.min_layers,
                                        high=(self.max_layers + 1))
-        layers = [np.random.randint(low=self.min_neurons,
-                                    high=(self.max_neurons + 1),
-                                    size=num_layers)]
+        layers = np.random.randint(low=self.min_neurons,
+                                   high=(self.max_neurons + 1),
+                                   size=num_layers)
         look_back = np.random.randint(low=self.min_look_back,
                                       high=(self.max_look_back + 1),
                                       size=1)
         solution.set_encoded('architecture',
-                             np.concatenate((layers + look_back)))
+                             np.concatenate((look_back, layers)).tolist())
         return solution
 
     def validate_solution(self,
@@ -92,8 +98,10 @@ class TimeSeriesMAERandSampProblem(op.Problem):
             encoded.append(self.min_look_back)
         if encoded[0] < self.min_look_back:
             encoded[0] = self.min_look_back
-        if encoded[0] > self.max_look_back:
+        elif encoded[0] > self.max_look_back:
             encoded[0] = self.max_look_back
+        elif not isinstance(encoded[0], int):
+            encoded[0] = int(encoded[0])
         # layers
         while (len(encoded) - 1) < self.min_layers:
             encoded.append(self.min_neurons)
@@ -102,30 +110,30 @@ class TimeSeriesMAERandSampProblem(op.Problem):
         for i in range(1, len(encoded)):
             if encoded[i] > self.max_neurons:
                 encoded[i] = self.max_neurons
-            if encoded[i] < self.min_neurons:
+            elif encoded[i] < self.min_neurons:
                 encoded[i] = self.min_neurons
+            elif not isinstance(encoded[i], int):
+                encoded[i] = int(encoded[i])
 
     def decode_solution(self,
                         solution):
         layers = ([len(self.x_features)] +
-                  list(solution.get_encoded('architecture')[1:]) +
+                  solution.get_encoded('architecture')[1:] +
                   [len(self.y_features)])
+        look_back = solution.get_encoded('architecture')[0]
         model = self.builder.build_model(layers,
                                          verbose=self.verbose,
                                          **self.kwargs)
-        return model
+        return model, layers, look_back
 
     def solution_to_dict(self,
                          solution):
-        model = self.decode_solution(solution)
-        layers = ([len(self.x_features)] +
-                  list(solution.get_encoded('architecture')[1:]) +
-                  [len(self.y_features)])
-        look_back = solution.get_encoded('architecture')[0]
+        model, layers, look_back = self.decode_solution(solution)
         return {'model_config': str(model.get_config()),
                 'layers': str(layers),
                 'look_back': str(look_back),
                 'fitness': solution.fitness}
+
 
 class MuPlusLambda(ea.EABase):
     """ (Mu+Lambda) basic algorithm
@@ -137,6 +145,7 @@ class MuPlusLambda(ea.EABase):
         super().__init__(problem,
                          seed,
                          verbose)
+        # We add the default parameter values
         self.params.update({'p_mutation_i': 0.1,
                             'p_mutation_e': 0.1,
                             'mutation_scale_factor': 2})
@@ -147,7 +156,7 @@ class MuPlusLambda(ea.EABase):
                             self.params['p_mutation_i'],
                             self.params['mutation_scale_factor'])
         ea.uniformLengthMutation(solution.get_encoded('architecture'),
-                                     self.params['p_mutation_e'])
+                                 self.params['p_mutation_e'])
 
     def select(self,
                population):

@@ -72,6 +72,7 @@ class Problem(ABC):
     def decode_solution(self,
                         solution):
         """ Decodes the solution into a model
+        Returns: model, _
         """
         raise Exception
 
@@ -126,6 +127,18 @@ class Solution(object):
             self.fitness[target] = value
         else:
             raise Exception("'target' does not match")
+
+    def clear_fitness(self):
+        for target in self.targets:
+            self.fitness = {}
+
+    def is_evaluated(self):
+        if len(self.fitness) < len(self.targets):
+            return False
+        for target in self.targets:
+            if target not in self.fitness:
+                return False
+        return True
 
     def comparedTo(self,
                    solution):

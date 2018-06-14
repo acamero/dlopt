@@ -99,7 +99,7 @@ class RNNBuilder(NNBuilder):
             self.model.set_weights(weights)
         self.trainable_params = int(np.sum(
               [K.count_params(p) for p in set(self.model.trainable_weights)]))
-        if verbose:
+        if verbose > 1:
             self.model.summary()
         return self.model
 
