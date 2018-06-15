@@ -1,0 +1,4 @@
+output.json
+__pycache__
+*.pyc
+*.hdf5

@@ -39,7 +39,8 @@ def predict_on_predictions(model,
                            x_append.reshape((1, len(x_features))),
                            axis=0)
         X_test = X_test.reshape(-1, look_back, len(x_features))
-    return pred
+    y = test_df[y_features].values[:, :]
+    return pred, y
 
 
 class NNBuilder(ABC):
@@ -105,6 +106,9 @@ class RNNBuilder(NNBuilder):
 
 
 class TrainNN(ABC):
+    """ Training class
+    """
+    model = None
 
     def __init__(self,
                  verbose=0,
@@ -118,14 +122,23 @@ class TrainNN(ABC):
               **kwargs):
         raise NotImplemented()
 
+    def load_from_file(self,
+                       model_filename):
+        if isinstance(model_filename, str):
+            self.model = load_model(model_filename)
+        else:
+            raise TypeError()
+
+    def load_from_model(self,
+                        model):
+        self.model = model
+
 
 class TrainGradientBased(TrainNN):
     """ Train an artificial neural network
     """
-    model = None
-
     def __init__(self,
-                 file_name="trained-model.hdf5",
+                 model_filename="trained-model.hdf5",
                  optimizer=Adam(lr=5e-5),
                  monitor='val_loss',
                  min_delta=1e-5,
@@ -134,7 +147,7 @@ class TrainGradientBased(TrainNN):
                  **kwargs):
         super().__init__(verbose=verbose,
                          **kwargs)
-        self.checkpointer = ModelCheckpoint(filepath=file_name,
+        self.checkpointer = ModelCheckpoint(filepath=model_filename,
                                             verbose=verbose,
                                             save_best_only=True)
         self.optimizer = optimizer
@@ -143,17 +156,6 @@ class TrainGradientBased(TrainNN):
                                             patience=patience,
                                             verbose=verbose,
                                             mode='auto')
-
-    def load_from_file(self,
-                       file_name):
-        if isinstance(file_name, str):
-            self.model = load_model(file_name)
-        else:
-            raise TypeError()
-
-    def load_from_model(self,
-                        model):
-        self.model = model
 
     def add_dropout(self,
                     dropout):
@@ -171,7 +173,8 @@ class TrainGradientBased(TrainNN):
               validation_split=0.3,
               batch_size=10,
               loss='mean_squared_error',
-              shuffle=False):
+              shuffle=False,
+              **kwargs):
         self.model.compile(loss=loss,
                            optimizer=self.optimizer)
         self.trainable_count = int(np.sum(
