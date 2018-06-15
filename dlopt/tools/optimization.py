@@ -17,9 +17,11 @@ class Optimizer(b.ActionBase):
     problem_class
     data_loader_class and data_loader_params
     targets
+    model_filename
 
     Optional:
     output_logger_class and output_logger_params
+    trainer_class and trainer_params
     **any other set of params supported by the classes/functions
     """
     def __init__(self,
@@ -51,14 +53,21 @@ class Optimizer(b.ActionBase):
             return False
         if 'targets' not in config:
             return False
+        if 'model_filename' not in config:
+            return False
+        if 'output_logger_class' in config:
+            if not issubclass(config['output_logger_class'],
+                              ut.OutputLogger):
+                return False
+            if 'output_logger_params' not in config:
+                return False
         return True
 
     def do_action(self,
                   **kwargs):
         if not self._is_valid_config(**kwargs):
             raise Exception('The configuration is not valid')
-        if ('output_logger_class' in kwargs and
-                'output_logger_params' in kwargs):
+        if 'output_logger_class' in kwargs:
             self._set_output(kwargs['output_logger_class'],
                              kwargs['output_logger_params'])
         data_loader = kwargs['data_loader_class']()
@@ -69,8 +78,8 @@ class Optimizer(b.ActionBase):
         optimizer = kwargs['algorithm_class'](problem,
                                               seed=self.seed,
                                               verbose=self.verbose)
-        solution = optimizer.optimize(**kwargs)
-        desc = problem.solution_to_dict(solution)
-        self._output(**desc)
+        model, solution_desc = optimizer.optimize(**kwargs)
+        self._output(**solution_desc)
         if self.verbose:
-            print(desc)
+            print(solution_desc)
+        model.save(kwargs['model_filename'])

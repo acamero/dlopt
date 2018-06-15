@@ -28,5 +28,6 @@
 "nn_builder_class": "dlopt.nn.RNNBuilder",
 "dense_activation": "tanh",
 "output_logger_class": "dlopt.util.JSONOutput",
-"output_logger_params": {"filename": "output.json"}
+"output_logger_params": {"filename": "output.json"},
+"model_filename": "model.hdf5"
 }

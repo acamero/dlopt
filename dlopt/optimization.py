@@ -27,6 +27,12 @@ class ModelOptimization(ABC):
     @abstractmethod
     def optimize(self,
                  **kwargs):
+        """ Optimize a problem and returns a model and dictionary that
+        contains:
+        config     model description as text (keras config)
+        fitness    fitness of the solution
+        *          more text/numerical information
+        """
         raise Exception("'optimize' is not implemented")
 
 
@@ -77,10 +83,10 @@ class Problem(ABC):
         raise Exception
 
     @abstractmethod
-    def solution_to_dict(self,
-                         solution):
-        """ Decodes the solution into a model
-        description dictionary
+    def solution_as_result(self,
+                           solution):
+        """ Decodes the solution in the format required
+        by 'ModelOptimization.optimize'
         """
         raise Exception
 

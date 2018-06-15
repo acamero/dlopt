@@ -104,18 +104,36 @@ class RNNBuilder(NNBuilder):
         return self.model
 
 
-class TrainNN(object):
+class TrainNN(ABC):
+
+    def __init__(self,
+                 verbose=0,
+                 **kwargs):
+        self.verbose = verbose
+
+    @abstractmethod
+    def train(self,
+              x_df,
+              y_df,
+              **kwargs):
+        raise NotImplemented()
+
+
+class TrainGradientBased(TrainNN):
     """ Train an artificial neural network
     """
     model = None
 
     def __init__(self,
-                 file_name='model.hdf5',
+                 file_name="trained-model.hdf5",
                  optimizer=Adam(lr=5e-5),
                  monitor='val_loss',
-                 min_delta=0.0001,
+                 min_delta=1e-5,
                  patience=50,
-                 verbose=0):
+                 verbose=0,
+                 **kwargs):
+        super().__init__(verbose=verbose,
+                         **kwargs)
         self.checkpointer = ModelCheckpoint(filepath=file_name,
                                             verbose=verbose,
                                             save_best_only=True)
@@ -125,7 +143,6 @@ class TrainNN(object):
                                             patience=patience,
                                             verbose=verbose,
                                             mode='auto')
-        self.verbose = verbose
 
     def load_from_file(self,
                        file_name):
@@ -138,12 +155,12 @@ class TrainNN(object):
                         model):
         self.model = model
 
-    def add_drop_out(self,
-                     drop_out):
+    def add_dropout(self,
+                    dropout):
         x = Sequential()
         for layer in self.model.layers[:-1]:
             x.add(layer)
-            x.add(Dropout(drop_out))
+            x.add(Dropout(dropout))
         x.add(self.model.layers[-1])
         self.model = x
 
@@ -152,7 +169,7 @@ class TrainNN(object):
               y_df,
               epochs=100,
               validation_split=0.3,
-              batch_size=20,
+              batch_size=10,
               loss='mean_squared_error',
               shuffle=False):
         self.model.compile(loss=loss,
@@ -166,7 +183,7 @@ class TrainNN(object):
                                  y_df,
                                  batch_size=batch_size,
                                  verbose=self.verbose,
-                                 nb_epoch=epochs,
+                                 epochs=epochs,
                                  validation_split=validation_split,
                                  callbacks=[self.early_stopping,
                                             self.checkpointer],

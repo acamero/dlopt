@@ -150,4 +150,5 @@ class EABase(op.ModelOptimization):
                 print("Restart " + str(restart))
             population = self._go_one_step(population)
             restart += 1
-        return population[0]
+        model, solution_desc = self.problem.solution_as_result(population[0])
+        return model, solution_desc

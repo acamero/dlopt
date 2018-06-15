@@ -126,13 +126,15 @@ class TimeSeriesMAERandSampProblem(op.Problem):
                                          **self.kwargs)
         return model, layers, look_back
 
-    def solution_to_dict(self,
-                         solution):
+    def solution_as_result(self,
+                           solution):
+        solution_desc = {}
         model, layers, look_back = self.decode_solution(solution)
-        return {'model_config': str(model.get_config()),
-                'layers': str(layers),
-                'look_back': str(look_back),
-                'fitness': solution.fitness}
+        solution_desc['config'] = str(model.get_config())
+        solution_desc['layers'] = layers
+        solution_desc['look_back'] = look_back
+        solution_desc['fitness'] = solution.fitness
+        return model, solution_desc
 
 
 class MuPlusLambda(ea.EABase):
