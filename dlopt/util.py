@@ -80,6 +80,16 @@ def orthogonal(size,
     return gain * q[:size[0], :size[1]]
 
 
+def load_class_from_str(str_class):
+    if str_class.count('.') > 0:
+        module_name = str_class[0:str_class.rfind('.')]
+        class_name = str_class[str_class.rfind('.')+1:]
+        return getattr(importlib.import_module(module_name),
+                       class_name)
+    else:
+        return locals()[str_class]
+
+
 class Config(object):
     """ Configuration class loaded from a file
     """
@@ -126,17 +136,20 @@ class Config(object):
         for key in json_config:
             if ((key.endswith("_class") or key.endswith("_func"))
                     and json_config[key] != ''):
-                if json_config[key].count('.') > 0:
-                    module_name = json_config[key][
-                        0:json_config[key].rfind('.')]
-                    class_name = json_config[key][
-                        json_config[key].rfind('.')+1:]
-                    setattr(self,
-                            key,
-                            getattr(importlib.import_module(module_name),
-                                    class_name))
-                else:
-                    setattr(self, key, locals()[json_config[key]])
+                setattr(self,
+                        key,
+                        load_class_from_str(json_config[key]))
+#                if json_config[key].count('.') > 0:
+#                    module_name = json_config[key][
+#                        0:json_config[key].rfind('.')]
+#                    class_name = json_config[key][
+#                        json_config[key].rfind('.')+1:]
+#                    setattr(self,
+#                            key,
+#                            getattr(importlib.import_module(module_name),
+#                                    class_name))
+#                else:
+#                    setattr(self, key, locals()[json_config[key]])
             else:
                 setattr(self, key, json_config[key])
 
@@ -176,4 +189,6 @@ class DataLoader(ABC):
     @abstractmethod
     def load(self,
              **kwargs):
+        """ Loads a dataset into a pandas dataframe.
+        """
         raise NotImplemented("DataLoader not implemented")

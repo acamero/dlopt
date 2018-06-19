@@ -4,6 +4,7 @@ import random as rd
 from . import util as ut
 from scipy.stats import truncnorm
 from abc import ABC, abstractmethod
+import time
 
 
 class RandomSampling(object):
@@ -130,6 +131,7 @@ class MAERandomSampling(RandomSamplingFit):
             truncated_upper=2.0,
             threshold=0.01,
             **kwargs):
+        start = time.time()
         samples = self.sampler.sample(model,
                                       ut.random_normal,
                                       num_samples,
@@ -155,8 +157,10 @@ class MAERandomSampling(RandomSamplingFit):
                                     loc=mean,
                                     scale=std)
         log_p = np.log(p_threshold)
+        sampling_time = time.time() - start
         return {'p': p_threshold,
                 'log_p': log_p,
                 'mean': mean,
                 'std': std,
+                'sampling_time': sampling_time,
                 'samples': samples}

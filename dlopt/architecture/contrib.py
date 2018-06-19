@@ -29,7 +29,7 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                  nn_builder_class=nn.RNNBuilder,
                  nn_trainer_class=nn.TrainGradientBased,
                  training_split=0.8,
-                 nn_metric=ut.mae_loss,
+                 nn_metric_func=ut.mae_loss,
                  **kwargs):
         super().__init__(data,
                          targets,
@@ -48,7 +48,7 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                          **kwargs)
         self.nn_trainer_class = nn_trainer_class
         self.training_split = training_split
-        self.nn_metric = nn_metric
+        self.nn_metric = nn_metric_func
 
     def solution_as_result(self,
                            solution):
@@ -86,4 +86,7 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                                             look_back)
         metric = self.nn_metric(pred,
                                 y)
+        if self.verbose:
+            print(self.nn_metric,
+                  metric)
         return metric, pred

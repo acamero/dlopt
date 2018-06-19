@@ -27,11 +27,14 @@ class ModelOptimization(ABC):
     @abstractmethod
     def optimize(self,
                  **kwargs):
-        """ Optimize a problem and returns a model and dictionary that
-        contains:
-        config     model description as text (keras config)
-        fitness    fitness of the solution
-        *          more text/numerical information
+        """ Optimize a problem and returns:
+        model            keras moodel
+        solution_desc    dictionary that at least contains:
+                config       model description as text (keras config)
+                fitness      fitness of the solution
+                         and optionally:
+                y_predicted  predicted values
+                *            more text/numerical information
         """
         raise Exception("'optimize' is not implemented")
 
