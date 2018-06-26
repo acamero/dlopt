@@ -43,6 +43,24 @@ def predict_on_predictions(model,
     return pred, y
 
 
+def predict(model,
+            train_df,
+            test_df,
+            x_features,
+            y_features,
+            look_back):
+    """ Predict the test interval using the last 'look_back' data from
+    training dataset and the test data"""
+    X_test = pd.DataFrame.append(train_df[x_features][-look_back:],
+                                 test_df[x_features])
+    X_test = np.array([X_test.values[i:i+look_back]
+                       for i in range(X_test.shape[0] - look_back)])
+    X_test = X_test.reshape(-1, look_back, len(x_features))
+    pred = model.predict(X_test)
+    y = test_df[y_features].values[:, :]
+    return pred, y
+
+
 class NNBuilder(ABC):
     """ Artificial Neural Network base builder
     """
@@ -165,6 +183,16 @@ class TrainGradientBased(TrainNN):
             x.add(Dropout(dropout))
         x.add(self.model.layers[-1])
         self.model = x
+        if self.verbose > 1:
+            self.model.summary()
+
+    def init_weights(self,
+                     init_function,
+                     **kwargs):
+        weights = list()
+        for w in self.model.weights:
+            weights.append(init_function(w.shape, **kwargs))
+        self.model.set_weights(weights)
 
     def train(self,
               x_df,

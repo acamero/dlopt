@@ -17,6 +17,21 @@ def gaussianMutation(encoded,
                 scale=mutation_scale_factor)
 
 
+def uniformMutation(encoded,
+                    p_mutation,
+                    mutation_max_step=1):
+    """ Element-wise uniform mutation
+    Performs a uniform step mutation on the i-th encoded variable
+    with a probability p_mutation.
+    """
+    for i in range(len(encoded)):
+        if np.random.rand() < p_mutation:
+            step = np.max([1, np.random.randint(0, mutation_max_step)])
+            if np.random.rand() < 0.5:
+                step = -1 * step
+            encoded[i] += step
+
+
 def uniformLengthMutation(encoded,
                           p_mutation):
     """ With p_mutation probability copy/delete an encoded variable
@@ -100,6 +115,14 @@ class EABase(op.ModelOptimization):
                 offspring):
         raise Exception
 
+    def call_on_generation(self,
+                           population):
+        pass
+
+    def call_on_restart(self,
+                        population):
+        pass
+
     def _go_one_step(self,
                      seed_population):
         population = (
@@ -131,6 +154,7 @@ class EABase(op.ModelOptimization):
                                       offspring)
             evaluations += len(offspring)
             generation += 1
+            self.call_on_generation(population)
             if self.verbose:
                 print(str(evaluations) + " evaluations")
                 print("Generation " + str(generation))
@@ -150,5 +174,6 @@ class EABase(op.ModelOptimization):
                 print("Restart " + str(restart))
             population = self._go_one_step(population)
             restart += 1
+            self.call_on_restart(population)
         model, solution_desc = self.problem.solution_as_result(population[0])
         return model, solution_desc
