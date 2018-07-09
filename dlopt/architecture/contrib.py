@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from keras.layers.recurrent import LSTM
 import numpy as np
 import time
+import gc
 
 
 class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
@@ -93,6 +94,12 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                                             look_back)
         metric = self.nn_metric(pred,
                                 y)
+        del df_x
+        del df_y
+        del trainer
+        gc_out = gc.collect()
+        if self.verbose > 1:
+            print("GC collect", gc_out)
         if self.verbose:
             print(self.nn_metric,
                   metric)
@@ -162,7 +169,9 @@ class SelfAdjMuPLambdaUniform(ea.EABase):
                 self.params['p_mutation_i'] = self.params['p_mutation_i'] / 4
                 self.params['p_mutation_e'] = self.params['p_mutation_e'] / 4
         self.last_avgs = avgs
+        # gc_out = gc.collect()
         if self.verbose > 1:
+            # print("GC collect", gc_out)
             print("Averages:", str(avgs))
             print("Mutation parameters after tuning",
                   self.params['p_mutation_i'],
@@ -301,6 +310,7 @@ class TimeSeriesTrainProblem(op.Problem):
                                                    self.test_epochs)
         solution_desc['testing_metrics'] = metrics
         solution_desc['y_predicted'] = pred.tolist()
+        solution_desc['y_predicted_on_predictions'] = pred_on_preds.tolist()
         solution_desc['config'] = str(model.get_config())
         return model, solution_desc
 
@@ -326,6 +336,8 @@ class TimeSeriesTrainProblem(op.Problem):
                       df_y,
                       epochs=epochs,
                       **self.kwargs)
+        del df_x
+        del df_y
         pred_on_preds, y = nn.predict_on_predictions(model,
                                                      self.data[:split],
                                                      self.data[split:],
@@ -338,6 +350,7 @@ class TimeSeriesTrainProblem(op.Problem):
                              self.x_features,
                              self.y_features,
                              look_back)
+        del trainer
         metrics = {}
         metrics['mae'] = ut.mae_loss(pred,
                                      y)
@@ -349,6 +362,9 @@ class TimeSeriesTrainProblem(op.Problem):
                                               y)
         evaluation_time = time.time() - start
         metrics['evaluation_time'] = evaluation_time
+        gc_out = gc.collect()
+        if self.verbose > 1:
+            print("GC collect", gc_out)
         if self.verbose:
             print(metrics)
         return metrics, pred, pred_on_preds

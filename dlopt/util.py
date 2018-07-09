@@ -3,6 +3,7 @@ import json
 import importlib
 from abc import ABC, abstractmethod
 import json
+import pandas as pd
 
 
 def random_uniform(size,
@@ -181,6 +182,25 @@ class JSONOutput(OutputLogger):
             f.close()
         except IOError:
             print('IOError when writing to ' + self.filename)
+
+
+class CSVOutput(OutputLogger):
+    """ Print a set of results into a JSON file
+    """
+    def __init__(self,
+                 **kwargs):
+        np.set_printoptions(threshold=np.inf)
+        if 'filename' not in kwargs:
+            raise Exception("JSONOutput init error: 'filename' missing")
+        self.filename = kwargs['filename']
+
+    def output(self,
+               df=None,
+               **kwargs):
+        if df is None or not isinstance(df, pd.DataFrame):
+            raise Warning("A pandas DataFrame must be provided 'df'")
+        else:
+            df.to_csv(self.filename)
 
 
 class DataLoader(ABC):

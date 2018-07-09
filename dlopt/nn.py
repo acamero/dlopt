@@ -61,6 +61,10 @@ def predict(model,
     return pred, y
 
 
+def model_from_file(model_filename):
+    return load_model(model_filename)
+
+
 class NNBuilder(ABC):
     """ Artificial Neural Network base builder
     """
@@ -210,15 +214,15 @@ class TrainGradientBased(TrainNN):
         start = time.time()
         if self.verbose:
             print('Start training (', start, ')')
-        history = self.model.fit(x_df,
-                                 y_df,
-                                 batch_size=batch_size,
-                                 verbose=self.verbose,
-                                 epochs=epochs,
-                                 validation_split=validation_split,
-                                 callbacks=[self.early_stopping,
-                                            self.checkpointer],
-                                 shuffle=shuffle)
+        self.model.fit(x_df,
+                       y_df,
+                       batch_size=batch_size,
+                       verbose=self.verbose,
+                       epochs=epochs,
+                       validation_split=validation_split,
+                       callbacks=[self.early_stopping,
+                                  self.checkpointer],
+                       shuffle=shuffle)
         train_time = time.time() - start
         if self.verbose:
             print('Finish trainning. Total time: ', train_time)

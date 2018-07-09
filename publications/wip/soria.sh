@@ -58,7 +58,7 @@ echo 'Seed 18'
 python ../../dlopt/tools/main.py --config soria.json --verbose=2 --seed=18
 mv model-soria.hdf5 18-model-soria.hdf5
 echo 'Seed 19'
-python ../../dlopt/tools/main.py --config soria.json --verbose=2 --seed=19
+python ../../dlopt/tools/main.py --config soria.json --verbose=2 --seed=39
 mv model-soria.hdf5 19-model-soria.hdf5
 echo 'Seed 20'
 python ../../dlopt/tools/main.py --config soria.json --verbose=2 --seed=20

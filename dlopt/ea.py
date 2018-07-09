@@ -68,7 +68,8 @@ def elitistPlusReplacement(population,
     """
     temporal = population + offspring
     temporal.sort(reverse=True)
-    return temporal[0:len(population)]
+    del temporal[len(population):]
+    return temporal
 
 
 class EABase(op.ModelOptimization):
