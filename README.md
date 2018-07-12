@@ -38,7 +38,7 @@ pyinstaller optimizer.py -F --path ../env/lib/python3.5/ --hidden-import algorit
 
 ## How to cite DLOPT
 
-We encourage authors of scientific papers to cite:
+We encourage authors of scientific papers including results generated using DLOPT to cite:
 
 * Camero, A., Toutouh, J., and Alba, E. DLOPT: Deep Learning Optimization Library. arXiv preprint arXiv:1807.03523 (july 2018)
 
