@@ -1,8 +1,8 @@
 {
 "action_class": "dlopt.tools.prediction.RecurrentPrediction",
 "prediction_func": "dlopt.nn.predict_on_predictions",
-"data_loader_class": "publications.wip.rubbish.RubbishDataLoader",
-"data_loader_params": {"filename": "rubbish-2013.csv"},
+"data_loader_class": "publications.cities2018.rubbish.RubbishDataLoader",
+"data_loader_params": {"filename": "../../data/waste/rubbish-2013.csv"},
 "x_features": ["C-A100", "C-A107", "C-A108", "C-A109", "C-A11", "C-A110", "C-A111", "C-A112", "C-A113", "C-A115", 
                "C-A117", "C-A119", "C-A12", "C-A120", "C-A121", "C-A122", "C-A123", "C-A124", "C-A125", "C-A126", 
                "C-A127", "C-A128", "C-A129", "C-A13", "C-A130", "C-A132", "C-A133", "C-A134", "C-A135", "C-A136", 

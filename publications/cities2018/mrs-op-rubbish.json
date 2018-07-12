@@ -1,8 +1,8 @@
 {
 "action_class": "dlopt.tools.optimization.Optimizer",
 "algorithm_class": "dlopt.architecture.problems.MuPlusLambda",
-"data_loader_class": "publications.wip.rubbish.RubbishDataLoader",
-"data_loader_params": {"filename": "rubbish-2013.csv"},
+"data_loader_class": "publications.cities2018.rubbish.RubbishDataLoader",
+"data_loader_params": {"filename": "../../data/waste/rubbish-2013.csv"},
 "problem_class": "dlopt.architecture.contrib.TimeSeriesHybridMRSProblem",
 "targets": {"log_p": 1},
 "population_size": 10,
