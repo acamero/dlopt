@@ -9,6 +9,7 @@ This respository contains several deliverables associated to the main topic (NN 
 
 * **data**: datasets used in publications.
 * **dlopt**: main library
+* **docs**: miscellaneous documents
 * **etc**: analysis, useful scripts, and other stuff.
 * **examples**: a quick guide on using DLOPT
 * **publications**: stand alone deliverables related to scientific publications. Please refer to [Publications](#publications).
@@ -35,10 +36,20 @@ pyinstaller optimizer.py -F --path ../env/lib/python3.5/ --hidden-import algorit
 ```
 
 
-## Publications
+## How to cite DLOPT
+
+We encourage authors of scientific papers to cite:
+
+* Camero, A., Toutouh, J., and Alba, E. DLOPT: Deep Learning Optimization Library. arXiv preprint arXiv:1807.03523 (july 2018)
+
+
+
+## Related Publications
 
 * Camero, A., Toutouh, J., Stolfi, D.H., and Alba, E. Evolutionary Deep Learning for Car Park Occupancy Prediction in Smart Cities. To appear in Proc. of Learning and Intelligent OptimizatioN Conference (LION 12). 2018.
 * Camero, A., Toutouh, J., and Alba, E. Low-cost recurrent neural network expected performance evaluation. arXiv preprint arXiv:1805.07159 (may 2018)
+* Camero, A., Toutouh, J., and Alba, E. DLOPT: Deep Learning Optimization Library. arXiv preprint arXiv:1807.03523 (july 2018)
+* Camero, A., Toutouh, J., and Alba, E. Comparing Deep Recurrent Networks Based on the MAE Random Sampling, a First Approach. To appear in Conference of the Spanish Association for Artificial Intelligence, CAEPIA, 2018.
 
 
 ## Contributing
@@ -55,12 +66,14 @@ Please see the list of scientific publications for more information about people
 
 ## License
 
-This project is licensed under the GNU GPL v3 license - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the GNU GPL v3 license - see the [LICENSE.md](LICENSE.md) file for details. 
 
 
 ## Acknowledgments
 
-This project has been partially funded by the Spanish MINECO and FEDER projects:
+This research was partially funded by Ministerio de Economı́a, Industria y Competitividad, Gobierno de España, and European
+Regional Development Fund grant numbers:
+
 * [TIN2014-57341-R](http://moveon.lcc.uma.es)
 * [TIN2016-81766-REDT](http://cirti.es)
 * [TIN2017-88213-R](http://6city.lcc.uma.es)
