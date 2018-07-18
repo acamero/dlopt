@@ -12,7 +12,7 @@ from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.models import load_model
 from keras.optimizers import Adam
-from keras.utils import plot_model
+from keras.utils import plot_model, Sequence
 from keras import backend as K
 
 
@@ -139,8 +139,8 @@ class TrainNN(ABC):
 
     @abstractmethod
     def train(self,
-              x_df,
-              y_df,
+              train_dataset,
+              validation_dataset=None,
               **kwargs):
         raise NotImplemented()
 
@@ -199,13 +199,12 @@ class TrainGradientBased(TrainNN):
         self.model.set_weights(weights)
 
     def train(self,
-              x_df,
-              y_df,
+              train_dataset,
+              validation_dataset=None,
+              validation_steps=None,
               epochs=100,
-              validation_split=0.3,
-              batch_size=10,
+              steps_per_epoch=None,
               loss='mean_squared_error',
-              shuffle=False,
               **kwargs):
         self.model.compile(loss=loss,
                            optimizer=self.optimizer)
@@ -214,17 +213,71 @@ class TrainGradientBased(TrainNN):
         start = time.time()
         if self.verbose:
             print('Start training (', start, ')')
-        self.model.fit(x_df,
-                       y_df,
-                       batch_size=batch_size,
-                       verbose=self.verbose,
-                       epochs=epochs,
-                       validation_split=validation_split,
-                       callbacks=[self.early_stopping,
-                                  self.checkpointer],
-                       shuffle=shuffle)
+        if self.verbose > 1:
+            verbose = 1
+        elif self.verbose == 1:
+            verbose = 2
+        self.model.fit_generator(train_dataset,
+                                 validation_data=validation_dataset,
+                                 validation_steps=validation_steps,
+                                 steps_per_epoch=steps_per_epoch,
+                                 epochs=epochs,
+                                 callbacks=[self.early_stopping,
+                                            self.checkpointer],
+                                 verbose=verbose)
         train_time = time.time() - start
         if self.verbose:
             print('Finish trainning. Total time: ', train_time)
         return {'trainable_vars': self.trainable_count,
                 'training_time': train_time}
+
+
+class TimeSeriesData(Sequence):
+    """ Implements the Sequence iterator for a time series
+    """
+    def __init__(self,
+                 df,
+                 x_features,
+                 y_features,
+                 look_back,
+                 batch_size=5):
+        self.df = df
+        self.x_features = x_features
+        self.y_features = y_features
+        self.look_back = look_back
+        self.batch_size = batch_size
+
+    def __getitem__(self,
+                    index):
+        """Gets batch at position `index`.
+        # Arguments
+            index: position of the batch in the Sequence.
+        # Returns
+            A batch
+        """
+        begin = index*self.batch_size
+        if (index + 1) == self.__len__():
+            # In the last batch we add all the remaining data
+            end = self.df.shape[0] - self.look_back
+        else:
+            end = (index+1)*self.batch_size
+        x = np.array([self.df[self.x_features].values[i:i+self.look_back]
+                      for i in range(begin, end)])
+        y = self.df[self.y_features].values[
+            (begin + self.look_back):(end + self.look_back), :]
+        return x, y
+
+    def __len__(self):
+        """Number of batch in the Sequence.
+        # Returns
+            The number of batches in the Sequence.
+        """
+        # We round to the floor, therefore we "skip" some data.
+        # As a work around, the remainder is added to the last batch
+        return int(np.floor(
+            (self.df.shape[0] - self.look_back) / self.batch_size))
+
+    def on_epoch_end(self):
+        """Method called at the end of every epoch.
+        """
+        pass

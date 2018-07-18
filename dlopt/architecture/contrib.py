@@ -31,8 +31,11 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                  nn_builder_class=nn.RNNBuilder,
                  nn_trainer_class=nn.TrainGradientBased,
                  training_split=0.8,
+                 validation_split=0.8,
                  nn_metric_func=ut.mae_loss,
                  dropout=0.5,
+                 epochs=10,
+                 batch_size=5,
                  **kwargs):
         super().__init__(data,
                          targets,
@@ -51,8 +54,11 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                          **kwargs)
         self.nn_trainer_class = nn_trainer_class
         self.training_split = training_split
+        self.validation_split = validation_split
         self.nn_metric = nn_metric_func
         self.dropout = dropout
+        self.epochs = epochs
+        self.batch_size = batch_size
 
     def solution_as_result(self,
                            solution):
@@ -62,7 +68,9 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
         solution_desc['look_back'] = look_back
         solution_desc['fitness'] = solution.fitness
         nn_metric, pred = self._train(model,
-                                      look_back)
+                                      look_back,
+                                      self.dropout,
+                                      self.epochs)
         solution_desc['testing_metric'] = nn_metric
         solution_desc['y_predicted'] = pred.tolist()
         solution_desc['config'] = str(model.get_config())
@@ -70,7 +78,10 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
 
     def _train(self,
                model,
-               look_back):
+               look_back,
+               dropout,
+               epochs):
+        start = time.time()
         trainer = self.nn_trainer_class(verbose=self.verbose,
                                         **self.kwargs)
         trainer.load_from_model(model)
@@ -79,19 +90,29 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                              high=0.5)
         trainer.add_dropout(dropout)
         split = int(self.training_split * len(self.data))
-        df_x, df_y = ut.chop_data(self.data[:split],
-                                  self.x_features,
-                                  self.y_features,
-                                  look_back)
-        trainer.train(df_x,
-                      df_y,
+        validation_split = int(self.validation_split * split)
+        train_dataset = nn.TimeSeriesData(
+            self.data[:validation_split],
+            self.x_features,
+            self.y_features,
+            look_back)
+        validation_dataset = nn.TimeSeriesData(
+            self.data[validation_split:split],
+            self.x_features,
+            self.y_features,
+            look_back)
+        trainer.train(train_dataset,
+                      validation_dataset=validation_dataset,
+                      epochs=epochs,
                       **self.kwargs)
-        pred, y = nn.predict_on_predictions(model,
-                                            self.data[:split],
-                                            self.data[split:],
-                                            self.x_features,
-                                            self.y_features,
-                                            look_back)
+        del train_dataset
+        del validation_dataset
+        pred, y = nn.predict(model,
+                             self.data[:split],
+                             self.data[split:],
+                             self.x_features,
+                             self.y_features,
+                             look_back)
         metric = self.nn_metric(pred,
                                 y)
         del df_x
@@ -199,7 +220,9 @@ class TimeSeriesTrainProblem(op.Problem):
                  nn_builder_class=nn.RNNBuilder,
                  nn_trainer_class=nn.TrainGradientBased,
                  training_split=0.8,
+                 validation_split=0.8,
                  dropout=0.5,
+                 batch_size=32,
                  **kwargs):
         super().__init__(data,
                          targets,
@@ -225,7 +248,9 @@ class TimeSeriesTrainProblem(op.Problem):
         self.test_epochs = test_epochs
         self.nn_trainer_class = nn_trainer_class
         self.training_split = training_split
+        self.validation_split = validation_split
         self.builder = nn_builder_class()
+        self.batch_size = batch_size
 
     def evaluate(self,
                  solution):
@@ -328,16 +353,29 @@ class TimeSeriesTrainProblem(op.Problem):
                              high=0.5)
         trainer.add_dropout(dropout)
         split = int(self.training_split * len(self.data))
-        df_x, df_y = ut.chop_data(self.data[:split],
-                                  self.x_features,
-                                  self.y_features,
-                                  look_back)
-        trainer.train(df_x,
-                      df_y,
+        # df_x, df_y = ut.chop_data(self.data[:split],
+        #                          self.x_features,
+        #                          self.y_features,
+        #                          look_back)
+        validation_split = int(self.validation_split * split)
+        train_dataset = nn.TimeSeriesData(
+            self.data[:validation_split],
+            self.x_features,
+            self.y_features,
+            look_back,
+            self.batch_size)
+        validation_dataset = nn.TimeSeriesData(
+            self.data[validation_split:split],
+            self.x_features,
+            self.y_features,
+            look_back,
+            self.batch_size)
+        trainer.train(train_dataset,
+                      validation_dataset=validation_dataset,
                       epochs=epochs,
                       **self.kwargs)
-        del df_x
-        del df_y
+        del train_dataset
+        del validation_dataset
         pred_on_preds, y = nn.predict_on_predictions(model,
                                                      self.data[:split],
                                                      self.data[split:],
