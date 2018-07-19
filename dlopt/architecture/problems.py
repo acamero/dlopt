@@ -12,11 +12,9 @@ class TimeSeriesMAERandSampProblem(op.Problem):
     """ Mean Absolute Error Random Sampling RNN Problem
     """
     def __init__(self,
-                 data,
+                 dataset,
                  targets,
                  verbose=0,
-                 x_features=None,
-                 y_features=None,
                  num_samples=30,
                  min_layers=1,
                  max_layers=1,
@@ -27,18 +25,10 @@ class TimeSeriesMAERandSampProblem(op.Problem):
                  sampler=sp.MAERandomSampling,
                  nn_builder_class=nn.RNNBuilder,
                  **kwargs):
-        super().__init__(data,
+        super().__init__(dataset,
                          targets,
                          verbose,
                          **kwargs)
-        if x_features is None:
-            self.x_features = data.columns
-        else:
-            self.x_features = x_features
-        if y_features is None:
-            self.y_features = data.columns
-        else:
-            self.y_features = y_features
         self.num_samples = num_samples
         self.min_layers = min_layers
         self.max_layers = max_layers
@@ -58,14 +48,10 @@ class TimeSeriesMAERandSampProblem(op.Problem):
                 print('Solution already evaluated')
             return
         model, layers, look_back = self.decode_solution(solution)
-        df_x, df_y = ut.chop_data(self.data,
-                                  self.x_features,
-                                  self.y_features,
-                                  look_back)
+        self.dataset.training_data.look_back = look_back
         results = self.sampler.fit(model,
                                    self.num_samples,
-                                   df_x,
-                                   df_y,
+                                   self.dataset.training_data,
                                    **self.kwargs)
         if self.verbose > 1:
             print({'layers': layers,
@@ -117,9 +103,9 @@ class TimeSeriesMAERandSampProblem(op.Problem):
 
     def decode_solution(self,
                         solution):
-        layers = ([len(self.x_features)] +
+        layers = ([self.dataset.input_dim] +
                   solution.get_encoded('architecture')[1:] +
-                  [len(self.y_features)])
+                  [self.dataset.output_dim])
         look_back = solution.get_encoded('architecture')[0]
         model = self.builder.build_model(layers,
                                          verbose=self.verbose,

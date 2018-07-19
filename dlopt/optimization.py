@@ -4,6 +4,7 @@ import random as rd
 from . import util as ut
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from keras.utils import Sequence
 
 
 class ModelOptimization(ABC):
@@ -39,11 +40,72 @@ class ModelOptimization(ABC):
         raise Exception("'optimize' is not implemented")
 
 
+class Dataset(object):
+    """ Dataset
+    training data
+    validation data
+    testing data
+    """
+    training_data = None
+    validation_data = None
+    testing_data = None
+    input_dim = None
+    output_dim = None
+    x_features = None
+    y_features = None
+
+    def __init__(self,
+                 training_data,
+                 valitation_data,
+                 testing_data,
+                 x_features,
+                 y_features):
+        self.x_features = x_features
+        self.y_features = y_features
+        self.input_dim = len(x_features)
+        self.output_dim = len(y_features)
+        self.set_training(training_data)
+        self.set_validation(valitation_data)
+        self.set_testing(testing_data)
+
+    def set_training(self,
+                     data):
+        if not isinstance(data,
+                          Sequence):
+            raise Exception("The dataset must implement keras.utils.Sequence")
+        self.training_data = data
+        self._validate_dim(data)
+
+    def set_validation(self,
+                       data):
+        if not isinstance(data,
+                          Sequence):
+            raise Exception("The dataset must implement keras.utils.Sequence")
+        self.validation_data = data
+        self._validate_dim(data)
+
+    def set_testing(self,
+                    data):
+        if not isinstance(data,
+                          Sequence):
+            raise Exception("The dataset must implement keras.utils.Sequence")
+        self.testing_data = data
+        self._validate_dim(data)
+
+    def _validate_dim(self,
+                      data):
+        x, y = data.__getitem__(0)
+        if self.input_dim != int(x.shape[-1]):
+            raise Exception("Input dimension mismatch")
+        if self.output_dim != int(y.shape[-1]):
+            raise Exception("Output dimension mismatch")
+
+
 class Problem(ABC):
     """ Problem base class
     """
     def __init__(self,
-                 data,
+                 dataset,
                  targets,
                  verbose=0,
                  **kwargs):
@@ -51,7 +113,10 @@ class Problem(ABC):
             if np.abs(targets[t]) != 1:
                 raise Exception("Target must be 1 or -1")
         self.targets = targets
-        self.data = data
+        if not isinstance(dataset,
+                          Dataset):
+            raise Exception("The dataset must implement Dataset")
+        self.dataset = dataset
         self.kwargs = kwargs
         self.verbose = verbose
 

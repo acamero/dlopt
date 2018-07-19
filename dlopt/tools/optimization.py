@@ -71,8 +71,8 @@ class Optimizer(b.ActionBase):
             self._set_output(kwargs['output_logger_class'],
                              kwargs['output_logger_params'])
         data_loader = kwargs['data_loader_class']()
-        data = data_loader.load(**kwargs['data_loader_params'])
-        problem = kwargs['problem_class'](data,
+        data_loader.load(**kwargs['data_loader_params'])
+        problem = kwargs['problem_class'](data_loader.dataset,
                                           verbose=self.verbose,
                                           **kwargs)
         optimizer = kwargs['algorithm_class'](problem,

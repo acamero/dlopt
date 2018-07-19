@@ -206,9 +206,11 @@ class CSVOutput(OutputLogger):
 class DataLoader(ABC):
     """ Abstract class to encapsulate the data loading process
     """
+    dataset = None
+
     @abstractmethod
     def load(self,
              **kwargs):
-        """ Loads a dataset into a pandas dataframe.
+        """ Loads a dataset
         """
         raise NotImplemented("DataLoader not implemented")

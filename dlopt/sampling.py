@@ -20,16 +20,22 @@ class RandomSampling(object):
                model,
                init_function,
                num_samples,
-               x_df,
-               y_df,
+               data,
                metric_function,
                **kwargs):
         sampled_metrics = list()
+        Y = None
+        for i in range(len(data)):
+            x, y = data.__getitem__(i)
+            if Y is None:
+                Y = y
+            else:
+                Y = np.append(Y, y, axis=0)
         for i in range(num_samples):
             weights = self._generate_weights(model, init_function, **kwargs)
             model.set_weights(weights)
-            y_predicted = model.predict(x_df)
-            metric = metric_function(y_df, y_predicted)
+            y_predicted = model.predict_generator(data)
+            metric = metric_function(Y, y_predicted)
             sampled_metrics.append(metric)
         return sampled_metrics
 
@@ -110,8 +116,7 @@ class RandomSamplingFit(ABC):
     def fit(self,
             model,
             num_samples,
-            x_df,
-            y_df,
+            data,
             **kwargs):
         raise Exception("'fit' is not implemented")
 
@@ -125,8 +130,7 @@ class MAERandomSampling(RandomSamplingFit):
     def fit(self,
             model,
             num_samples,
-            x_df,
-            y_df,
+            data,
             truncated_lower=0.0,
             truncated_upper=2.0,
             threshold=0.01,
@@ -135,8 +139,7 @@ class MAERandomSampling(RandomSamplingFit):
         samples = self.sampler.sample(model,
                                       ut.random_normal,
                                       num_samples,
-                                      x_df,
-                                      y_df,
+                                      data,
                                       ut.mae_loss,
                                       **kwargs)
         """

@@ -1,15 +1,14 @@
 {
 "action_class": "dlopt.tools.architecture.TimeSeriesMAERandomSampler",
 "listing_class": "dlopt.sampling.FullSpaceListing",
-"listing_params" : {"min_neurons": 1, 
-                          "max_neurons": 2,
-                          "min_layers": 1,
-                          "max_layers": 2},
+"listing_params" : {
+    "min_neurons": 1, 
+    "max_neurons": 2,
+    "min_layers": 1,
+    "max_layers": 2},
 "num_samples": 30,
 "min_look_back": 1,
 "max_look_back": 2,
-"x_features": ["sin"],
-"y_features": ["sin"],
 "truncated_lower": 0.0,
 "truncated_upper": 2.0,
 "threshold": 0.01,
@@ -18,5 +17,10 @@
 "output_logger_class": "dlopt.util.JSONOutput",
 "output_logger_params": {"filename": "output.json"},
 "data_loader_class": "examples.sin.sin.SinDataLoader",
-"data_loader_params": {}
+"data_loader_params": {
+    "batch_size" : 5,
+    "training_ratio": 0.8,
+    "validation_ratio": 0.2,
+    "x_features": ["sin"],
+    "y_features": ["sin"]}
 }

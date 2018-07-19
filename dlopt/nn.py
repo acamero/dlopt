@@ -16,51 +16,6 @@ from keras.utils import plot_model, Sequence
 from keras import backend as K
 
 
-def predict_on_predictions(model,
-                           train_df,
-                           test_df,
-                           x_features,
-                           y_features,
-                           look_back):
-    """ Predict the test interval using the training dataset and the
-    predictions already made by the network"""
-    X_test = train_df[x_features].values[-look_back:]
-    X_test = X_test.reshape(-1, look_back, len(x_features))
-    append_features = list(filter(lambda x: x not in y_features, x_features))
-    pred = np.empty((0, len(y_features)), int)
-    for i in range(test_df.shape[0]):
-        pred = np.append(pred,
-                         model.predict(X_test),
-                         axis=0)
-        X_test = X_test[0][1:]
-        x_append = np.concatenate((pred[i],
-                                   test_df[append_features].values[i]))
-        X_test = np.append(X_test,
-                           x_append.reshape((1, len(x_features))),
-                           axis=0)
-        X_test = X_test.reshape(-1, look_back, len(x_features))
-    y = test_df[y_features].values[:, :]
-    return pred, y
-
-
-def predict(model,
-            train_df,
-            test_df,
-            x_features,
-            y_features,
-            look_back):
-    """ Predict the test interval using the last 'look_back' data from
-    training dataset and the test data"""
-    X_test = pd.DataFrame.append(train_df[x_features][-look_back:],
-                                 test_df[x_features])
-    X_test = np.array([X_test.values[i:i+look_back]
-                       for i in range(X_test.shape[0] - look_back)])
-    X_test = X_test.reshape(-1, look_back, len(x_features))
-    pred = model.predict(X_test)
-    y = test_df[y_features].values[:, :]
-    return pred, y
-
-
 def model_from_file(model_filename):
     return load_model(model_filename)
 
@@ -144,6 +99,12 @@ class TrainNN(ABC):
               **kwargs):
         raise NotImplemented()
 
+    @abstractmethod
+    def evaluate(self,
+                 train_dataset,
+                 **kwargs):
+        raise NotImplemented()
+
     def load_from_file(self,
                        model_filename):
         if isinstance(model_filename, str):
@@ -165,6 +126,7 @@ class TrainGradientBased(TrainNN):
                  monitor='val_loss',
                  min_delta=1e-5,
                  patience=50,
+                 metrics=['mae', 'mse', 'mape', 'msle'],
                  verbose=0,
                  **kwargs):
         super().__init__(verbose=verbose,
@@ -178,6 +140,7 @@ class TrainGradientBased(TrainNN):
                                             patience=patience,
                                             verbose=verbose,
                                             mode='auto')
+        self.metrics = metrics
 
     def add_dropout(self,
                     dropout):
@@ -207,16 +170,18 @@ class TrainGradientBased(TrainNN):
               loss='mean_squared_error',
               **kwargs):
         self.model.compile(loss=loss,
-                           optimizer=self.optimizer)
+                           optimizer=self.optimizer,
+                           metrics=self.metrics)
         self.trainable_count = int(np.sum(
             [K.count_params(p) for p in set(self.model.trainable_weights)]))
         start = time.time()
         if self.verbose:
             print('Start training (', start, ')')
+        verb = 0
         if self.verbose > 1:
-            verbose = 1
+            verb = 1
         elif self.verbose == 1:
-            verbose = 2
+            verb = 2
         self.model.fit_generator(train_dataset,
                                  validation_data=validation_dataset,
                                  validation_steps=validation_steps,
@@ -224,22 +189,30 @@ class TrainGradientBased(TrainNN):
                                  epochs=epochs,
                                  callbacks=[self.early_stopping,
                                             self.checkpointer],
-                                 verbose=verbose)
+                                 verbose=verb)
         train_time = time.time() - start
         if self.verbose:
             print('Finish trainning. Total time: ', train_time)
         return {'trainable_vars': self.trainable_count,
                 'training_time': train_time}
 
+    def evaluate(self,
+                 train_dataset,
+                 **kwargs):
+        values = self.model.evaluate_generator(train_dataset)
+        metrics_dict = dict(zip(self.metrics, values))
+        prediction = self.model.predict_generator(train_dataset)
+        return metrics_dict, prediction
 
-class TimeSeriesData(Sequence):
+
+class TimeSeriesDataset(Sequence):
     """ Implements the Sequence iterator for a time series
     """
     def __init__(self,
                  df,
                  x_features,
                  y_features,
-                 look_back,
+                 look_back=1,
                  batch_size=5):
         self.df = df
         self.x_features = x_features

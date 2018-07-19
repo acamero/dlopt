@@ -15,11 +15,9 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
     """ Mean Absolute Error Random Sampling RNN Problem
     """
     def __init__(self,
-                 data,
+                 dataset,
                  targets,
                  verbose=0,
-                 x_features=None,
-                 y_features=None,
                  num_samples=30,
                  min_layers=1,
                  max_layers=1,
@@ -30,18 +28,13 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                  sampler=sp.MAERandomSampling,
                  nn_builder_class=nn.RNNBuilder,
                  nn_trainer_class=nn.TrainGradientBased,
-                 training_split=0.8,
-                 validation_split=0.8,
-                 nn_metric_func=ut.mae_loss,
                  dropout=0.5,
                  epochs=10,
                  batch_size=5,
                  **kwargs):
-        super().__init__(data,
+        super().__init__(dataset,
                          targets,
                          verbose,
-                         x_features,
-                         y_features,
                          num_samples,
                          min_layers,
                          max_layers,
@@ -53,9 +46,6 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                          nn_builder_class,
                          **kwargs)
         self.nn_trainer_class = nn_trainer_class
-        self.training_split = training_split
-        self.validation_split = validation_split
-        self.nn_metric = nn_metric_func
         self.dropout = dropout
         self.epochs = epochs
         self.batch_size = batch_size
@@ -89,42 +79,24 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                              low=-0.5,
                              high=0.5)
         trainer.add_dropout(dropout)
-        split = int(self.training_split * len(self.data))
-        validation_split = int(self.validation_split * split)
-        train_dataset = nn.TimeSeriesData(
-            self.data[:validation_split],
-            self.x_features,
-            self.y_features,
-            look_back)
-        validation_dataset = nn.TimeSeriesData(
-            self.data[validation_split:split],
-            self.x_features,
-            self.y_features,
-            look_back)
-        trainer.train(train_dataset,
-                      validation_dataset=validation_dataset,
+        self.dataset.training_data.look_back = look_back
+        self.dataset.validation_data.look_back = look_back
+        self.dataset.testing_data.look_back = look_back
+        trainer.train(self.dataset.training_data,
+                      validation_dataset=self.dataset.validation_data,
                       epochs=epochs,
                       **self.kwargs)
-        del train_dataset
-        del validation_dataset
-        pred, y = nn.predict(model,
-                             self.data[:split],
-                             self.data[split:],
-                             self.x_features,
-                             self.y_features,
-                             look_back)
-        metric = self.nn_metric(pred,
-                                y)
-        del df_x
-        del df_y
+        metrics, pred = trainer.evaluate(self.dataset.testing_data,
+                                         **self.kwargs)
         del trainer
+        evaluation_time = time.time() - start
+        metrics['evaluation_time'] = evaluation_time
         gc_out = gc.collect()
         if self.verbose > 1:
             print("GC collect", gc_out)
         if self.verbose:
-            print(self.nn_metric,
-                  metric)
-        return metric, pred
+            print(metrics)
+        return metrics, pred
 
 
 class SelfAdjMuPLambdaUniform(ea.EABase):
@@ -204,11 +176,9 @@ class TimeSeriesTrainProblem(op.Problem):
     of pre-trained networks
     """
     def __init__(self,
-                 data,
+                 dataset,
                  targets,
                  verbose=0,
-                 x_features=None,
-                 y_features=None,
                  min_layers=1,
                  max_layers=1,
                  min_neurons=1,
@@ -219,23 +189,12 @@ class TimeSeriesTrainProblem(op.Problem):
                  test_epochs=10,
                  nn_builder_class=nn.RNNBuilder,
                  nn_trainer_class=nn.TrainGradientBased,
-                 training_split=0.8,
-                 validation_split=0.8,
                  dropout=0.5,
-                 batch_size=32,
                  **kwargs):
-        super().__init__(data,
+        super().__init__(dataset,
                          targets,
                          verbose,
                          **kwargs)
-        if x_features is None:
-            self.x_features = data.columns
-        else:
-            self.x_features = x_features
-        if y_features is None:
-            self.y_features = data.columns
-        else:
-            self.y_features = y_features
         self.min_layers = min_layers
         self.max_layers = max_layers
         self.min_neurons = min_neurons
@@ -247,10 +206,7 @@ class TimeSeriesTrainProblem(op.Problem):
         self.train_epochs = train_epochs
         self.test_epochs = test_epochs
         self.nn_trainer_class = nn_trainer_class
-        self.training_split = training_split
-        self.validation_split = validation_split
         self.builder = nn_builder_class()
-        self.batch_size = batch_size
 
     def evaluate(self,
                  solution):
@@ -259,10 +215,10 @@ class TimeSeriesTrainProblem(op.Problem):
                 print('Solution already evaluated')
             return
         model, layers, look_back = self.decode_solution(solution)
-        results, _, _ = self._train(model,
-                                    look_back,
-                                    self.dropout,
-                                    self.train_epochs)
+        results, _ = self._train(model,
+                                 look_back,
+                                 self.dropout,
+                                 self.train_epochs)
         if self.verbose > 1:
             print({'layers': layers,
                    'look_back': look_back,
@@ -313,9 +269,9 @@ class TimeSeriesTrainProblem(op.Problem):
 
     def decode_solution(self,
                         solution):
-        layers = ([len(self.x_features)] +
+        layers = ([self.dataset.input_dim] +
                   solution.get_encoded('architecture')[1:] +
-                  [len(self.y_features)])
+                  [self.dataset.output_dim])
         look_back = solution.get_encoded('architecture')[0]
         model = self.builder.build_model(layers,
                                          verbose=self.verbose,
@@ -329,13 +285,12 @@ class TimeSeriesTrainProblem(op.Problem):
         solution_desc['layers'] = layers
         solution_desc['look_back'] = look_back
         solution_desc['fitness'] = solution.fitness
-        metrics, pred, pred_on_preds = self._train(model,
-                                                   look_back,
-                                                   self.dropout,
-                                                   self.test_epochs)
+        metrics, pred = self._train(model,
+                                    look_back,
+                                    self.dropout,
+                                    self.test_epochs)
         solution_desc['testing_metrics'] = metrics
         solution_desc['y_predicted'] = pred.tolist()
-        solution_desc['y_predicted_on_predictions'] = pred_on_preds.tolist()
         solution_desc['config'] = str(model.get_config())
         return model, solution_desc
 
@@ -352,52 +307,16 @@ class TimeSeriesTrainProblem(op.Problem):
                              low=-0.5,
                              high=0.5)
         trainer.add_dropout(dropout)
-        split = int(self.training_split * len(self.data))
-        # df_x, df_y = ut.chop_data(self.data[:split],
-        #                          self.x_features,
-        #                          self.y_features,
-        #                          look_back)
-        validation_split = int(self.validation_split * split)
-        train_dataset = nn.TimeSeriesData(
-            self.data[:validation_split],
-            self.x_features,
-            self.y_features,
-            look_back,
-            self.batch_size)
-        validation_dataset = nn.TimeSeriesData(
-            self.data[validation_split:split],
-            self.x_features,
-            self.y_features,
-            look_back,
-            self.batch_size)
-        trainer.train(train_dataset,
-                      validation_dataset=validation_dataset,
+        self.dataset.training_data.look_back = look_back
+        self.dataset.validation_data.look_back = look_back
+        self.dataset.testing_data.look_back = look_back
+        trainer.train(self.dataset.training_data,
+                      validation_dataset=self.dataset.validation_data,
                       epochs=epochs,
                       **self.kwargs)
-        del train_dataset
-        del validation_dataset
-        pred_on_preds, y = nn.predict_on_predictions(model,
-                                                     self.data[:split],
-                                                     self.data[split:],
-                                                     self.x_features,
-                                                     self.y_features,
-                                                     look_back)
-        pred, y = nn.predict(model,
-                             self.data[:split],
-                             self.data[split:],
-                             self.x_features,
-                             self.y_features,
-                             look_back)
+        metrics, pred = trainer.evaluate(self.dataset.testing_data,
+                                         **self.kwargs)
         del trainer
-        metrics = {}
-        metrics['mae'] = ut.mae_loss(pred,
-                                     y)
-        metrics['mse'] = ut.mse_loss(pred,
-                                     y)
-        metrics['mae_on_preds'] = ut.mae_loss(pred_on_preds,
-                                              y)
-        metrics['mse_on_preds'] = ut.mse_loss(pred_on_preds,
-                                              y)
         evaluation_time = time.time() - start
         metrics['evaluation_time'] = evaluation_time
         gc_out = gc.collect()
@@ -405,4 +324,4 @@ class TimeSeriesTrainProblem(op.Problem):
             print("GC collect", gc_out)
         if self.verbose:
             print(metrics)
-        return metrics, pred, pred_on_preds
+        return metrics, pred

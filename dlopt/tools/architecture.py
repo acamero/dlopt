@@ -19,8 +19,6 @@ class TimeSeriesMAERandomSampler(b.ActionBase):
     max_look_back
     nn_builder_class
     num_samples
-    x_features
-    y_features
 
     Optional:
     output_logger_class and output_logger_params
@@ -74,9 +72,10 @@ class TimeSeriesMAERandomSampler(b.ActionBase):
             self._set_output(kwargs['output_logger_class'],
                              kwargs['output_logger_params'])
         data_loader = kwargs['data_loader_class']()
-        data = data_loader.load(**kwargs['data_loader_params'])
-        layer_in = len(kwargs['x_features'])
-        layer_out = len(kwargs['y_features'])
+        data_loader.load(**kwargs['data_loader_params'])
+        dataset = data_loader.dataset
+        layer_in = dataset.input_dim
+        layer_out = dataset.output_dim
         architectures = None
         if 'listing_class' in kwargs:
             listing = kwargs['listing_class']()
@@ -96,14 +95,10 @@ class TimeSeriesMAERandomSampler(b.ActionBase):
             # do the sampling
             for look_back in range(kwargs['min_look_back'],
                                    kwargs['max_look_back']+1):
-                df_x, df_y = ut.chop_data(data,
-                                          kwargs['x_features'],
-                                          kwargs['y_features'],
-                                          look_back)
                 sampler = samp.MAERandomSampling(self.seed)
+                dataset.testing_data.look_back = look_back
                 metrics = sampler.fit(model=model,
-                                      x_df=df_x,
-                                      y_df=df_y,
+                                      data=dataset.testing_data,
                                       **kwargs)
                 results = {}
                 results['metrics'] = metrics
