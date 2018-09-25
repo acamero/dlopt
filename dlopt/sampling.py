@@ -5,6 +5,7 @@ from . import util as ut
 from scipy.stats import truncnorm
 from abc import ABC, abstractmethod
 import time
+from sklearn.metrics import log_loss
 
 
 class RandomSampling(object):
@@ -24,18 +25,27 @@ class RandomSampling(object):
                metric_function,
                **kwargs):
         sampled_metrics = list()
-        Y = None
-        for i in range(len(data)):
-            x, y = data.__getitem__(i)
-            if Y is None:
-                Y = y
-            else:
-                Y = np.append(Y, y, axis=0)
+        # Y = None
+        # for i in range(len(data)):
+            # x, y = data.__getitem__(i)
+            # if Y is None:
+                # Y = y
+            # else:
+                # Y = np.append(Y, y, axis=0)
         for i in range(num_samples):
             weights = self._generate_weights(model, init_function, **kwargs)
             model.set_weights(weights)
-            y_predicted = model.predict_generator(data)
-            metric = metric_function(Y, y_predicted)
+            n_accum = 0
+            metric = 0
+            for i in range(len(data)):
+                x, y = data.__getitem__(i)                
+                y_pred = model.predict(x)
+                temp_metric = metric_function(y_pred, y)
+                n_temp = len(y)
+                metric = (n_accum * metric + n_temp * temp_metric) / (n_accum + n_temp)
+                n_accum = n_accum + n_temp
+            # y_predicted = model.predict_generator(data)
+            # metric = metric_function(y_predicted, Y)
             sampled_metrics.append(metric)
         return sampled_metrics
 

@@ -46,5 +46,5 @@ class SinDataLoader(ut.DataLoader):
         self.dataset = Dataset(training_data,
                                validation_data,
                                testing_data,
-                               self.params['x_features'],
-                               self.params['y_features'])
+                               input_dim=len(self.params['x_features']),
+                               output_dim=len(self.params['y_features']))

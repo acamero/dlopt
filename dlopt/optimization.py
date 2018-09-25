@@ -51,19 +51,15 @@ class Dataset(object):
     testing_data = None
     input_dim = None
     output_dim = None
-    x_features = None
-    y_features = None
 
     def __init__(self,
                  training_data,
                  valitation_data,
                  testing_data,
-                 x_features,
-                 y_features):
-        self.x_features = x_features
-        self.y_features = y_features
-        self.input_dim = len(x_features)
-        self.output_dim = len(y_features)
+                 input_dim=None,
+                 output_dim=None):
+        self.input_dim = input_dim
+        self.output_dim = output_dim
         self.set_training(training_data)
         self.set_validation(valitation_data)
         self.set_testing(testing_data)
@@ -74,7 +70,6 @@ class Dataset(object):
                           Sequence):
             raise Exception("The dataset must implement keras.utils.Sequence")
         self.training_data = data
-        self._validate_dim(data)
 
     def set_validation(self,
                        data):
@@ -82,7 +77,6 @@ class Dataset(object):
                           Sequence):
             raise Exception("The dataset must implement keras.utils.Sequence")
         self.validation_data = data
-        self._validate_dim(data)
 
     def set_testing(self,
                     data):
@@ -90,15 +84,6 @@ class Dataset(object):
                           Sequence):
             raise Exception("The dataset must implement keras.utils.Sequence")
         self.testing_data = data
-        self._validate_dim(data)
-
-    def _validate_dim(self,
-                      data):
-        x, y = data.__getitem__(0)
-        if self.input_dim != int(x.shape[-1]):
-            raise Exception("Input dimension mismatch")
-        if self.output_dim != int(y.shape[-1]):
-            raise Exception("Output dimension mismatch")
 
 
 class Problem(ABC):

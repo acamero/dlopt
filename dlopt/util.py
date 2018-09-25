@@ -4,6 +4,7 @@ import importlib
 from abc import ABC, abstractmethod
 import json
 import pandas as pd
+from sklearn.metrics import log_loss
 
 
 def random_uniform(size,
@@ -49,6 +50,11 @@ def mse_loss(y_predict,
 def mae_loss(y_predict,
              y):
     return np.mean(np.abs(y_predict - y))
+
+
+def categorical_crossentropy(y_predict,
+                             y):
+    return log_loss(y, y_predict)
 
 
 def chop_data(df, x_features, y_features, look_back):

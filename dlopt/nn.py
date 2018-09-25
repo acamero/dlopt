@@ -7,12 +7,13 @@ import time
 import math
 from . import util as ut
 from keras.layers.core import Dense, Activation, Dropout
+from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.models import load_model
 from keras.optimizers import Adam
-from keras.utils import plot_model, Sequence
+from keras.utils import plot_model, Sequence, to_categorical
 from keras import backend as K
 
 
@@ -47,28 +48,42 @@ class RNNBuilder(NNBuilder):
                     cell=LSTM,
                     weights=None,
                     dense_activation='tanh',
+                    embedding=None,
                     verbose=0,
                     **kwargs):
-        # self.hidden_layers=len(layers) - 2
-        # self.layers=layers
-        # self.input_dim=layers[0]
-        # self.output_dim=layers[-1]
+        """ Architecture from layers array:
+        lstm layers <- len(layers) - 2
+        input dim <- layers[0]
+        output dim <- layers[-1]
+        """
+        if embedding and len(layers) <= 3:
+            raise Exception("Provide more than 3 layers when using embedding")
         self.model = Sequential()
         for i in range(len(layers) - 2):
-            self.model.add(cell(
-                # Keras API 2
-                input_shape=(None, layers[i]),
-                units=layers[i+1],
-                # Keras API 1
-                # input_dim=layers[i],
-                # output_dim=layers[i+1],
-                kernel_initializer='zeros',
-                recurrent_initializer='zeros',
-                bias_initializer='zeros',
-                # Uncomment to use last batch state to init next training step.
-                # Specify shuffle=False when calling fit()
-                # batch_size=batch_size, stateful=True,
-                return_sequences=True if i < (len(layers) - 3) else False))
+            if (embedding
+               and i == 0
+               and len(layers) > 3):
+                self.model.add(Embedding(input_dim=layers[i],
+                                         output_dim=layers[i+1],
+                                         embeddings_initializer='zeros'))
+            else:
+                self.model.add(cell(
+                    # Keras API 2
+                    input_shape=(None, layers[i]),
+                    units=layers[i+1],
+                    # Keras API 1
+                    # input_dim=layers[i],
+                    # output_dim=layers[i+1],
+                    kernel_initializer='zeros',
+                    recurrent_initializer='zeros',
+                    bias_initializer='zeros',
+                    # Uncomment to use last batch state to init
+                    # next training step.
+                    # Specify shuffle=False when calling fit()
+                    # batch_size=batch_size, stateful=True,
+                    # return_sequences=True if i < (len(layers) - 3)
+                    #                       else False))
+                    return_sequences=True if i < (len(layers) - 3) else False))
         self.model.add(Dense(layers[-1],
                        activation=dense_activation,
                        kernel_initializer='zeros',
@@ -249,6 +264,57 @@ class TimeSeriesDataset(Sequence):
         # As a work around, the remainder is added to the last batch
         return int(np.floor(
             (self.df.shape[0] - self.look_back) / self.batch_size))
+
+    def on_epoch_end(self):
+        """Method called at the end of every epoch.
+        """
+        pass
+
+
+class CategoricalSeqDataset(Sequence):
+    """ Implements the Sequence iterator for a sequence of tokens
+    """
+    def __init__(self,
+                 tokens_sequence,
+                 num_classes,
+                 look_back=1,
+                 batch_size=5):
+        self.tokens_sequence = tokens_sequence
+        self.num_classes = num_classes
+        self.look_back = look_back
+        self.batch_size = batch_size
+
+    def __getitem__(self,
+                    index):
+        """Gets batch at position `index`.
+        # Arguments
+            index: position of the batch in the Sequence.
+        # Returns
+            A batch
+        """
+        begin = index*self.batch_size
+        if (index + 1) == self.__len__():
+            # In the last batch we add all the remaining data
+            end = len(self.tokens_sequence) - self.look_back
+        else:
+            end = (index+1)*self.batch_size
+        x = np.array([self.tokens_sequence[i:i+self.look_back]
+                      for i in range(begin, end)])
+        y = np.array(self.tokens_sequence[
+            (begin + self.look_back):(end + self.look_back)])
+        y = y[:, np.newaxis]
+        y = to_categorical(y, self.num_classes)
+        return x, y
+
+    def __len__(self):
+        """Number of batch in the Sequence.
+        # Returns
+            The number of batches in the Sequence.
+        """
+        # We round to the floor, therefore we "skip" some data.
+        # As a work around, the remainder is added to the last batch
+        return int(np.floor(
+            (len(self.tokens_sequence) - self.look_back) / self.batch_size))
 
     def on_epoch_end(self):
         """Method called at the end of every epoch.
