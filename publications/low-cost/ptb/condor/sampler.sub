@@ -1,0 +1,13 @@
+Universe       = vanilla
+#Requirements   = (Arch == "X86_64" ) && (OpSys == "LINUX") && (totalcpus >= 2)
+RequestCPUs    = 1
+Request_memory = 1G
+Executable     = run.sh
+Arguments      = "main $(Process)"
+Output         = logs/output.$(Process).out
+Error          = logs/error.$(Process).err
+Log            = logs/log.$(Process).log
+Should_transfer_files   = YES
+Transfer_input_files    = src/main,config/$(Process).json,data/ptb.test.txt,data/ptb.train.txt,data/ptb.valid.txt
+When_to_transfer_output = ON_EXIT
+Queue 259

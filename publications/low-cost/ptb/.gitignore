@@ -3,3 +3,7 @@ __pycache__
 *.pyc
 *.hdf5
 *.out
+devenv/
+build/
+dist/
+dlopt.egg-info/
