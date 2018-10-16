@@ -6,7 +6,7 @@ __pycache__
 *out.json
 local.sh
 config/
-condor/
+condor/config
 devenv/
 build/
 dist/
