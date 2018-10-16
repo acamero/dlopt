@@ -3,6 +3,10 @@ __pycache__
 *.pyc
 *.hdf5
 *.out
+*out.json
+local.sh
+config/
+condor/
 devenv/
 build/
 dist/
