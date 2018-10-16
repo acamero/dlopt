@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['main.py'],
-             pathex=['devenv/lib/python3.6/', 'devenv/lib/python3.6/site-packages/', '/home/andu/git/dlopt/publications/low-cost/ptb'],
+             pathex=['devenv/lib/python3.6/', 'devenv/lib/python3.6/site-packages/', './'],
              binaries=[],
              datas=[],
              hiddenimports=['ptb.ptb', 'scipy._lib.messagestream', 'dlopt.tools.architecture'],
