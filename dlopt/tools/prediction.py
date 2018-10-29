@@ -64,7 +64,7 @@ class RecurrentPrediction(b.ActionBase):
                 print("Look back updated")
         pred = model.predict_generator(dataset.testing_data)
         df_pred = pd.DataFrame(pred,
-                               columns=dataset.y_features)
+                               columns=dataset.testing_data.y_features)
         self._output(df=df_pred)
         if self.verbose:
             print(df_pred)

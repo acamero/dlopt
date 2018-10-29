@@ -141,7 +141,7 @@ class TrainGradientBased(TrainNN):
                  monitor='val_loss',
                  min_delta=1e-5,
                  patience=50,
-                 metrics=['mae', 'mse', 'mape', 'msle'],
+                 metrics=['mae', 'mse', 'msle', 'mape'],
                  verbose=0,
                  **kwargs):
         super().__init__(verbose=verbose,
@@ -215,7 +215,7 @@ class TrainGradientBased(TrainNN):
                  train_dataset,
                  **kwargs):
         values = self.model.evaluate_generator(train_dataset)
-        metrics_dict = dict(zip(self.metrics, values))
+        metrics_dict = dict(zip(self.metrics, values[1:]))
         prediction = self.model.predict_generator(train_dataset)
         return metrics_dict, prediction
 
