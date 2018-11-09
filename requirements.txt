@@ -8,7 +8,7 @@ h5py==2.7.1
 html5lib==0.9999999
 hyperopt==0.1
 Keras==2.1.2
-lxml==3.5.0
+lxml==4.2.0
 macholib==1.9
 Markdown==2.6.10
 mem-top==0.1.6
