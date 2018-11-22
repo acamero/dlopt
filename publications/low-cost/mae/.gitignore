@@ -1,3 +1,5 @@
+!bp-energy.json
+!mrs-energy.json
 *.json
 *.out
 __pycache__
