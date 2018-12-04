@@ -67,10 +67,15 @@ class RecurrentTraining(b.ActionBase):
         data_loader = kwargs['data_loader_class']()
         data_loader.load(**kwargs['data_loader_params'])
         dataset = data_loader.dataset
-        builder = kwargs['nn_builder_class']()
+        builder = kwargs['nn_builder_class']
         model = builder.build_model(kwargs['architecture'],
                                     verbose=self.verbose,
                                     **kwargs)
+        model = builder.add_dropout(model, kwargs['train_dropout'])
+        builder.init_weights(model,
+                             ut.random_uniform,
+                             low=-0.5,
+                             high=0.5)
         if 'look_back' in kwargs:
             dataset.training_data.look_back = kwargs['look_back']
             dataset.validation_data.look_back = kwargs['look_back']
@@ -79,7 +84,6 @@ class RecurrentTraining(b.ActionBase):
                 print("Look back updated")
         metrics, pred = self._train(model,
                                     dataset,
-                                    kwargs['train_dropout'],
                                     kwargs['train_epochs'],
                                     **kwargs)
         solution_desc = {}
@@ -92,17 +96,12 @@ class RecurrentTraining(b.ActionBase):
     def _train(self,
                model,
                dataset,
-               dropout,
                epochs,
                **kwargs):
         start = time.time()
         trainer = kwargs['nn_trainer_class'](verbose=self.verbose,
                                         **kwargs)
-        trainer.load_from_model(model)
-        trainer.init_weights(ut.random_uniform,
-                             low=-0.5,
-                             high=0.5)
-        trainer.add_dropout(dropout)        
+        trainer.load_from_model(model)                
         trainer.train(dataset.training_data,
                       validation_dataset=dataset.validation_data,
                       epochs=epochs,

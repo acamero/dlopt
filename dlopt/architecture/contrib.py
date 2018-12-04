@@ -9,6 +9,7 @@ from keras.layers.recurrent import LSTM
 import numpy as np
 import time
 import gc
+from keras import backend as K
 
 
 class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
@@ -57,11 +58,11 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
         solution_desc['layers'] = layers
         solution_desc['look_back'] = look_back
         solution_desc['fitness'] = solution.fitness
-        nn_metric, pred = self._train(model,
-                                      look_back,
-                                      self.dropout,
-                                      self.epochs)
-        solution_desc['testing_metric'] = nn_metric
+        model, nn_metric, pred = self._train(model,
+                                             look_back,
+                                             self.dropout,
+                                             self.epochs)
+        solution_desc['testing_metrics'] = nn_metric
         solution_desc['y_predicted'] = pred.tolist()
         solution_desc['config'] = str(model.get_config())
         return model, solution_desc
@@ -71,14 +72,18 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                look_back,
                dropout,
                epochs):
+        K.clear_session()
+        model = model.__class__.from_config(model.get_config())
         start = time.time()
         trainer = self.nn_trainer_class(verbose=self.verbose,
                                         **self.kwargs)
+        model = self.builder_class.add_dropout(model,
+                                               dropout)
+        self.builder_class.init_weights(model,
+                                        ut.random_uniform,
+                                        low=-0.5,
+                                        high=0.5)
         trainer.load_from_model(model)
-        trainer.init_weights(ut.random_uniform,
-                             low=-0.5,
-                             high=0.5)
-        trainer.add_dropout(dropout)
         self.dataset.training_data.look_back = look_back
         self.dataset.validation_data.look_back = look_back
         self.dataset.testing_data.look_back = look_back
@@ -88,15 +93,16 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                       **self.kwargs)
         metrics, pred = trainer.evaluate(self.dataset.testing_data,
                                          **self.kwargs)
-        del trainer
         evaluation_time = time.time() - start
         metrics['evaluation_time'] = evaluation_time
+        del trainer
         gc_out = gc.collect()
         if self.verbose > 1:
             print("GC collect", gc_out)
+            print(gc.garbage)
         if self.verbose:
             print(metrics)
-        return metrics, pred
+        return model, metrics, pred
 
 
 class SelfAdjMuPLambdaUniform(ea.EABase):
@@ -201,12 +207,11 @@ class TimeSeriesTrainProblem(op.Problem):
         self.max_neurons = max_neurons
         self.min_look_back = min_look_back
         self.max_look_back = max_look_back
-        self.builder = nn_builder_class()
         self.dropout = dropout
         self.train_epochs = train_epochs
         self.test_epochs = test_epochs
         self.nn_trainer_class = nn_trainer_class
-        self.builder = nn_builder_class()
+        self.builder_class = nn_builder_class
 
     def evaluate(self,
                  solution):
@@ -215,10 +220,12 @@ class TimeSeriesTrainProblem(op.Problem):
                 print('Solution already evaluated')
             return
         model, layers, look_back = self.decode_solution(solution)
-        results, _ = self._train(model,
-                                 look_back,
-                                 self.dropout,
-                                 self.train_epochs)
+        model, results, _ = self._train(model,
+                                        look_back,
+                                        self.dropout,
+                                        self.train_epochs)
+        del model
+        gc.collect()
         if self.verbose > 1:
             print({'layers': layers,
                    'look_back': look_back,
@@ -273,9 +280,9 @@ class TimeSeriesTrainProblem(op.Problem):
                   solution.get_encoded('architecture')[1:] +
                   [self.dataset.output_dim])
         look_back = solution.get_encoded('architecture')[0]
-        model = self.builder.build_model(layers,
-                                         verbose=self.verbose,
-                                         **self.kwargs)
+        model = self.builder_class.build_model(layers,
+                                               verbose=self.verbose,
+                                               **self.kwargs)
         return model, layers, look_back
 
     def solution_as_result(self,
@@ -285,10 +292,10 @@ class TimeSeriesTrainProblem(op.Problem):
         solution_desc['layers'] = layers
         solution_desc['look_back'] = look_back
         solution_desc['fitness'] = solution.fitness
-        metrics, pred = self._train(model,
-                                    look_back,
-                                    self.dropout,
-                                    self.test_epochs)
+        model, metrics, pred = self._train(model,
+                                           look_back,
+                                           self.dropout,
+                                           self.test_epochs)
         solution_desc['testing_metrics'] = metrics
         solution_desc['y_predicted'] = pred.tolist()
         solution_desc['config'] = str(model.get_config())
@@ -299,14 +306,20 @@ class TimeSeriesTrainProblem(op.Problem):
                look_back,
                dropout,
                epochs):
+        K.clear_session()
+        if self.verbose > 1:
+            print('Session cleared')
+        model = model.__class__.from_config(model.get_config())
         start = time.time()
         trainer = self.nn_trainer_class(verbose=self.verbose,
                                         **self.kwargs)
+        model = self.builder_class.add_dropout(model,
+                                               dropout)
+        self.builder_class.init_weights(model,
+                                        ut.random_uniform,
+                                        low=-0.5,
+                                        high=0.5)
         trainer.load_from_model(model)
-        trainer.init_weights(ut.random_uniform,
-                             low=-0.5,
-                             high=0.5)
-        trainer.add_dropout(dropout)
         self.dataset.training_data.look_back = look_back
         self.dataset.validation_data.look_back = look_back
         self.dataset.testing_data.look_back = look_back
@@ -316,12 +329,13 @@ class TimeSeriesTrainProblem(op.Problem):
                       **self.kwargs)
         metrics, pred = trainer.evaluate(self.dataset.testing_data,
                                          **self.kwargs)
-        del trainer
         evaluation_time = time.time() - start
         metrics['evaluation_time'] = evaluation_time
+        del trainer
         gc_out = gc.collect()
         if self.verbose > 1:
             print("GC collect", gc_out)
+            print(gc.garbage)
         if self.verbose:
             print(metrics)
-        return metrics, pred
+        return model, metrics, pred

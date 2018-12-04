@@ -85,7 +85,7 @@ class TimeSeriesMAERandomSampler(b.ActionBase):
             architectures = kwargs['architectures']
         if architectures is None:
             raise Exception('No architectures found')
-        nn_builder = kwargs['nn_builder_class']()
+        nn_builder = kwargs['nn_builder_class']
         for architecture in architectures:
             # Build the network
             layers = [layer_in] + architecture + [layer_out]
@@ -194,7 +194,7 @@ class CategoricalSeqRandomSampler(b.ActionBase):
             architectures = kwargs['architectures']
         if architectures is None:
             raise Exception('No architectures found')
-        nn_builder = kwargs['nn_builder_class']()
+        nn_builder = kwargs['nn_builder_class']
         for architecture in architectures:
             # Build the network
             layers = [layer_in] + architecture + [layer_out]

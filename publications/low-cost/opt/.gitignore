@@ -1,6 +1,5 @@
 *.json
 *.out
-!bp-energy.json
-!mrs-energy.json
+!opt-mrs-energy.json
 __pycache__
 config/

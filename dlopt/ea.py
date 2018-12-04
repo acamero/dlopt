@@ -2,6 +2,8 @@ import numpy as np
 from . import optimization as op
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from . import util as ut
+import gc
 
 
 def gaussianMutation(encoded,
@@ -69,6 +71,7 @@ def elitistPlusReplacement(population,
     temporal = population + offspring
     temporal.sort(reverse=True)
     del temporal[len(population):]
+    gc.collect()
     return temporal
 
 
@@ -135,6 +138,7 @@ class EABase(op.ModelOptimization):
         evaluations = len(population)
         generation = 0
         if self.verbose:
+            ut.display_top(limit=10)
             print("Generation " + str(generation))
             for p in population:
                 print("fitness:", p.fitness,
