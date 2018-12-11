@@ -138,7 +138,6 @@ class EABase(op.ModelOptimization):
         evaluations = len(population)
         generation = 0
         if self.verbose:
-            ut.display_top(limit=10)
             print("Generation " + str(generation))
             for p in population:
                 print("fitness:", p.fitness,

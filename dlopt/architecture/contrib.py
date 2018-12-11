@@ -73,6 +73,8 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                dropout,
                epochs):
         K.clear_session()
+        if self.verbose > 1:
+            print('Session cleared')
         model = model.__class__.from_config(model.get_config())
         start = time.time()
         trainer = self.nn_trainer_class(verbose=self.verbose,
@@ -149,7 +151,8 @@ class SelfAdjMuPLambdaUniform(ea.EABase):
         if self.verbose > 1:
             print("Mutation parameters before tuning",
                   self.params['p_mutation_i'],
-                  self.params['p_mutation_e'])
+                  self.params['p_mutation_e'],
+                  self.params['mutation_max_step'])
         if len(self.last_avgs) > 0:
             diffs = []
             for target in population[0].targets:
@@ -159,14 +162,16 @@ class SelfAdjMuPLambdaUniform(ea.EABase):
                     diffs.append(1)
                 else:
                     diffs.append(-1)
-                    diffs.append(-1)
             if np.sum(diffs) > 0:
                 # We are improving (on average)
-                self.params['p_mutation_i'] = self.params['p_mutation_i'] * 1.5
-                self.params['p_mutation_e'] = self.params['p_mutation_e'] * 1.5
+                self.params['p_mutation_i'] = min(1.0, self.params['p_mutation_i'] * 1.5)
+                self.params['p_mutation_e'] = min(1.0, self.params['p_mutation_e'] * 1.5)
+                self.params['mutation_max_step'] = self.params['mutation_max_step'] * 1.5
             else:
-                self.params['p_mutation_i'] = self.params['p_mutation_i'] / 4
-                self.params['p_mutation_e'] = self.params['p_mutation_e'] / 4
+                self.params['p_mutation_i'] = max(10e-10, self.params['p_mutation_i'] / 4)
+                self.params['p_mutation_e'] = max(10e-10, self.params['p_mutation_e'] / 4)
+                self.params['mutation_max_step'] = max(1, self.params['mutation_max_step'] / 4)
+            # 
         self.last_avgs = avgs
         # gc_out = gc.collect()
         if self.verbose > 1:
@@ -174,7 +179,8 @@ class SelfAdjMuPLambdaUniform(ea.EABase):
             print("Averages:", str(avgs))
             print("Mutation parameters after tuning",
                   self.params['p_mutation_i'],
-                  self.params['p_mutation_e'])
+                  self.params['p_mutation_e'],
+                  self.params['mutation_max_step'])
 
 
 class TimeSeriesTrainProblem(op.Problem):
