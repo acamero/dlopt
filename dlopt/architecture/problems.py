@@ -6,6 +6,7 @@ from .. import util as ut
 from abc import ABC, abstractmethod
 from keras.layers.recurrent import LSTM
 import numpy as np
+from keras import backend as K
 
 
 class TimeSeriesMAERandSampProblem(op.Problem):
@@ -22,7 +23,7 @@ class TimeSeriesMAERandSampProblem(op.Problem):
                  max_neurons=1,
                  min_look_back=1,
                  max_look_back=1,
-                 sampler=sp.MAERandomSampling,
+                 sampler_class=sp.MAERandomSampling,
                  nn_builder_class=nn.RNNBuilder,
                  **kwargs):
         super().__init__(dataset,
@@ -36,10 +37,10 @@ class TimeSeriesMAERandSampProblem(op.Problem):
         self.max_neurons = max_neurons
         self.min_look_back = min_look_back
         self.max_look_back = max_look_back
-        self.builder = nn_builder_class()
-        if not issubclass(sampler, sp.RandomSamplingFit):
+        self.builder_class = nn_builder_class
+        if not issubclass(sampler_class, sp.RandomSamplingFit):
             raise Exception("'sampler' is not valid")
-        self.sampler = sampler()
+        self.sampler_class = sampler_class
 
     def evaluate(self,
                  solution):
@@ -47,12 +48,17 @@ class TimeSeriesMAERandSampProblem(op.Problem):
             if self.verbose > 1:
                 print('Solution already evaluated')
             return
+        K.clear_session()
+        if self.verbose > 1:
+            print('Session cleared')
         model, layers, look_back = self.decode_solution(solution)
-        self.dataset.training_data.look_back = look_back
-        results = self.sampler.fit(model,
-                                   self.num_samples,
-                                   self.dataset.training_data,
-                                   **self.kwargs)
+        self.dataset.testing_data.look_back = look_back
+        sampler = self.sampler_class()
+        results = sampler.fit(model,
+                              self.num_samples,
+                              self.dataset.testing_data,
+                              **self.kwargs)
+        del sampler
         if self.verbose > 1:
             print({'layers': layers,
                    'look_back': look_back,
@@ -107,9 +113,9 @@ class TimeSeriesMAERandSampProblem(op.Problem):
                   solution.get_encoded('architecture')[1:] +
                   [self.dataset.output_dim])
         look_back = solution.get_encoded('architecture')[0]
-        model = self.builder.build_model(layers,
-                                         verbose=self.verbose,
-                                         **self.kwargs)
+        model = self.builder_class.build_model(layers,
+                                    verbose=self.verbose,
+                                    **self.kwargs)
         return model, layers, look_back
 
     def solution_as_result(self,

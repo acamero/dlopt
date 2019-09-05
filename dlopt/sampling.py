@@ -25,28 +25,11 @@ class RandomSampling(object):
                metric_function,
                **kwargs):
         sampled_metrics = list()
-        # Y = None
-        # for i in range(len(data)):
-        #   x, y = data.__getitem__(i)
-        #    if Y is None:
-        #        Y = y
-        #    else:
-        #        Y = np.append(Y, y, axis=0)
+        model.compile(optimizer='sgd', loss=metric_function)
         for i in range(num_samples):
             weights = self._generate_weights(model, init_function, **kwargs)
             model.set_weights(weights)
-            n_accum = 0
-            metric = 0
-            for i in range(len(data)):
-                x, y = data.__getitem__(i)
-                y_pred = model.predict(x)
-                temp_metric = metric_function(y_pred, y)
-                n_temp = len(y)
-                metric = ((n_accum * metric + n_temp * temp_metric) /
-                          (n_accum + n_temp))
-                n_accum = n_accum + n_temp
-            # y_predicted = model.predict_generator(data)
-            # metric = metric_function(y_predicted, Y)
+            metric = model.evaluate_generator(data)
             sampled_metrics.append(metric)
         return sampled_metrics
 
@@ -151,7 +134,7 @@ class MAERandomSampling(RandomSamplingFit):
                                       ut.random_normal,
                                       num_samples,
                                       data,
-                                      ut.mae_loss,
+                                      'mae',
                                       **kwargs)
         """
         The standard form of this distribution is a standard normal truncated

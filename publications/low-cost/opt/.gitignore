@@ -1,6 +1,7 @@
 *.json
 *.out
-!bp-energy.json
-!mrs-energy.json
+*.hdf5
+!opt-mrs-energy.json
 __pycache__
 config/
+sin/

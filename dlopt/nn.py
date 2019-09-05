@@ -11,7 +11,7 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
-from keras.models import load_model
+from keras.models import load_model, model_from_config
 from keras.optimizers import Adam
 from keras.utils import plot_model, Sequence, to_categorical
 from keras import backend as K
@@ -24,27 +24,43 @@ def model_from_file(model_filename):
 class NNBuilder(ABC):
     """ Artificial Neural Network base builder
     """
-    model = None
-
+    @staticmethod
     @abstractmethod
-    def build_model(self,
-                    layers,
+    def build_model(layers,
                     **kwargs):
         raise NotImplemented()
 
-    def model_to_png(self,
-                     out_file,
-                     shapes=True):
-        plot_model(self.model,
-                   to_file=out_file,
-                   show_shapes=shapes)
+    @staticmethod
+    def add_dropout(model,
+                    dropout):
+        x = Sequential()
+        for layer in model.layers[:-1]:
+            x.add(layer)
+            x.add(Dropout(dropout))
+        x.add(model.layers[-1])        
+        return x
+
+    @staticmethod
+    def init_weights(model,
+                     init_function,
+                     **kwargs):
+        weights = list()
+        for w in model.weights:
+            weights.append(init_function(w.shape, **kwargs))
+        model.set_weights(weights)
+
+    @staticmethod
+    def get_trainable_count(model):
+        trainable_params = int(np.sum(
+            [K.count_params(p) for p in set(model.trainable_weights)]))
+        return trainable_params
 
 
 class RNNBuilder(NNBuilder):
     """ Recurrent neural network builder
     """
-    def build_model(self,
-                    layers,
+    @staticmethod
+    def build_model(layers,
                     cell=LSTM,
                     weights=None,
                     dense_activation='tanh',
@@ -58,16 +74,16 @@ class RNNBuilder(NNBuilder):
         """
         if embedding and len(layers) <= 3:
             raise Exception("Provide more than 3 layers when using embedding")
-        self.model = Sequential()
+        model = Sequential()
         for i in range(len(layers) - 2):
             if (embedding
                and i == 0
                and len(layers) > 3):
-                self.model.add(Embedding(input_dim=layers[i],
-                                         output_dim=layers[i+1],
-                                         embeddings_initializer='zeros'))
+                model.add(Embedding(input_dim=layers[i],
+                                    output_dim=layers[i+1],
+                                    embeddings_initializer='zeros'))
             else:
-                self.model.add(cell(
+                model.add(cell(
                     # Keras API 2
                     input_shape=(None, layers[i]),
                     units=layers[i+1],
@@ -84,17 +100,15 @@ class RNNBuilder(NNBuilder):
                     # return_sequences=True if i < (len(layers) - 3)
                     #                       else False))
                     return_sequences=True if i < (len(layers) - 3) else False))
-        self.model.add(Dense(layers[-1],
-                       activation=dense_activation,
-                       kernel_initializer='zeros',
-                       bias_initializer='zeros'))
+        model.add(Dense(layers[-1],
+                  activation=dense_activation,
+                  kernel_initializer='zeros',
+                  bias_initializer='zeros'))
         if weights:
-            self.model.set_weights(weights)
-        self.trainable_params = int(np.sum(
-              [K.count_params(p) for p in set(self.model.trainable_weights)]))
+            model.set_weights(weights)
         if verbose > 1:
-            self.model.summary()
-        return self.model
+            model.summary()
+        return model
 
 
 class TrainNN(ABC):
@@ -128,16 +142,16 @@ class TrainNN(ABC):
             raise TypeError()
 
     def load_from_model(self,
-                        model):
+                        model):        
         self.model = model
 
-
+    
 class TrainGradientBased(TrainNN):
     """ Train an artificial neural network
     """
     def __init__(self,
                  model_filename="trained-model.hdf5",
-                 optimizer=Adam(lr=5e-5),
+                 optimizer='Adam(lr=5e-5)',
                  monitor='val_loss',
                  min_delta=1e-5,
                  patience=50,
@@ -149,32 +163,16 @@ class TrainGradientBased(TrainNN):
         self.checkpointer = ModelCheckpoint(filepath=model_filename,
                                             verbose=verbose,
                                             save_best_only=True)
-        self.optimizer = optimizer
+        if optimizer == 'Adam(lr=5e-5)':
+            self.optimizer = Adam(lr=5e-5)
+        else:
+            self.optimizer = optimizer
         self.early_stopping = EarlyStopping(monitor=monitor,
                                             min_delta=min_delta,
                                             patience=patience,
                                             verbose=verbose,
                                             mode='auto')
         self.metrics = metrics
-
-    def add_dropout(self,
-                    dropout):
-        x = Sequential()
-        for layer in self.model.layers[:-1]:
-            x.add(layer)
-            x.add(Dropout(dropout))
-        x.add(self.model.layers[-1])
-        self.model = x
-        if self.verbose > 1:
-            self.model.summary()
-
-    def init_weights(self,
-                     init_function,
-                     **kwargs):
-        weights = list()
-        for w in self.model.weights:
-            weights.append(init_function(w.shape, **kwargs))
-        self.model.set_weights(weights)
 
     def train(self,
               train_dataset,

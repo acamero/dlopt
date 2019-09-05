@@ -2,6 +2,8 @@ import numpy as np
 from . import optimization as op
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from . import util as ut
+import gc
 
 
 def gaussianMutation(encoded,
@@ -69,6 +71,7 @@ def elitistPlusReplacement(population,
     temporal = population + offspring
     temporal.sort(reverse=True)
     del temporal[len(population):]
+    gc.collect()
     return temporal
 
 
