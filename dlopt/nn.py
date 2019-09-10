@@ -226,15 +226,22 @@ class TimeSeriesDataset(Sequence):
                  x_features,
                  y_features,
                  look_back=1,
-                 batch_size=5):
+                 batch_size=5,
+                 precompute=True):
         self.df = df
         self.x_features = x_features
         self.y_features = y_features
         self.look_back = look_back
+        # We keep a backup record of the look back value, just in case
+        # it is updated
+        self._bkp_look_back = look_back
         self.batch_size = batch_size
+        self._precomputed = None
+        if precompute:
+            self._precompute()
 
-    def __getitem__(self,
-                    index):
+    def _get_batch_item(self,
+                  index):
         """Gets batch at position `index`.
         # Arguments
             index: position of the batch in the Sequence.
@@ -253,6 +260,20 @@ class TimeSeriesDataset(Sequence):
             (begin + self.look_back):(end + self.look_back), :]
         return x, y
 
+    def __getitem__(self,
+                    index):
+        """Gets batch at position `index`.
+        # Arguments
+            index: position of the batch in the Sequence.
+        # Returns
+            A batch
+        """
+        if self._precomputed:
+           self._precompute()
+           return self._pre_computed_batches[index]
+        else:
+           return self._get_batch_item(index)
+
     def __len__(self):
         """Number of batch in the Sequence.
         # Returns
@@ -267,6 +288,16 @@ class TimeSeriesDataset(Sequence):
         """Method called at the end of every epoch.
         """
         pass
+
+    def _precompute(self):
+        if (self._precomputed is None or 
+            (self._precomputed and self.look_back != self._bkp_look_back)):
+           # Get all the batches and store them in this object
+           self._pre_computed_batches = []
+           for i in range(self.__len__()):
+               self._pre_computed_batches.append(self._get_batch_item(i))
+           self._bkp_look_back = self.look_back
+        self._precomputed = True
 
 
 class CategoricalSeqDataset(Sequence):
