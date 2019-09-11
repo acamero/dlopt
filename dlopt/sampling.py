@@ -153,7 +153,10 @@ class MAERandomSampling(RandomSamplingFit):
                                     b,
                                     loc=mean,
                                     scale=std)
-        log_p = np.log(p_threshold)
+        if p_threshold == 0:
+            log_p = np.finfo(float).min
+        else:
+            log_p = np.log(p_threshold)
         sampling_time = time.time() - start
         return {'p': p_threshold,
                 'log_p': log_p,
