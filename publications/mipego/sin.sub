@@ -1,0 +1,14 @@
+Universe       = vanilla
+Requirements   = Machine == "mc3.lcc.uma.es" || Machine == "mc1.lcc.uma.es" || Machine == "mc2.lcc.uma.es" || Machine == "morfeo.lcc.uma.es"
+RequestCPUs    = 1 
+Request_memory = 4G
+Executable     = autorun.sh
+Arguments      = "$(Process) sin"
+Output         = logs/sin_output.$(Process).out
+Error          = logs/sin_error.$(Process).err
+Log            = logs/sin_log.$(Process).log
+Should_transfer_files   = YES
+Transfer_input_files    = src/dlopt-0.1-py3.6.egg, src/mipego-1.0.2-py3.6.egg, src/requirements.txt, src/rnn-arch-opt.py, src/loaders.py
+When_to_transfer_output = ON_EXIT
+Queue 30
+

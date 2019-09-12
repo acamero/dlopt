@@ -4,11 +4,6 @@ import time
 import argparse
 import sys
 
-#import our package, the surrogate model and the search space classes
-from mipego import mipego
-from mipego.Surrogate import RandomForest
-from mipego.SearchSpace import ContinuousSpace, NominalSpace, OrdinalSpace
-
 # from sin import SinDataLoader
 from dlopt.nn import RNNBuilder as nn_builder_class
 from dlopt.nn import TrainGradientBased as nn_trainer_class
@@ -17,76 +12,59 @@ from dlopt import util as ut
 
 
 #TODO: move the params to a configutarion file
+available_problems = ['test', 'sin', 'waste']
+problem = available_problems[1]
+
 data_loader_params = {} # passed to the data loader
 etc_params = {} # sampler and training params
-opt_params = {} # problem and mip-ego params
 
-problems = {}
-problems['test'] = {}
-problems['test']['data_loader_params'] = {
-    'freq': 1,
-    'start': 0,
-    'stop': 100,
-    'step': 0.1,
-    'x_features': ['sin'],
-    'y_features': ['sin'],
-    'training_ratio' : 0.8,
-    'validation_ratio' : 0.2,
-    'batch_size': 5}
-problems['test']['etc_params'] = {
-    'num_samples': 30,
-    'truncated_lower': 0.0,
-    'truncated_upper': 2.0,
-    'threshold': 0.01,
-    'model_filename': 'rnn-arch-opt-best_test.hdf5',
-    'dropout': 0.5,
-    'epochs': 5,
-    'dense_activation': 'tanh'}
-problems['test']['opt_params'] = {
-    'max_hl': 3, #max n of hidden layers
-    'min_nn': 1,
-    'max_nn': 100, #max n of nn per layer
-    'min_lb': 2,
-    'max_lb': 30, #max look back
-    'max_eval': 5,
-    'max_iter': 100,
-    'n_init_samples': 2,
-    'data_loader_class': 'loaders.SinDataLoader'}
 
-problems['sin'] = {}
-problems['sin']['data_loader_params'] = {
-    'freq': 1,
-    'start': 0,
-    'stop': 100,
-    'step': 0.1,
-    'x_features': ['sin'],
-    'y_features': ['sin'],
-    'training_ratio' : 0.8,
-    'validation_ratio' : 0.2,
-    'batch_size': 5}
-problems['sin']['etc_params'] = {
-    'num_samples': 100,
-    'truncated_lower': 0.0,
-    'truncated_upper': 2.0,
-    'threshold': 0.01,
-    'model_filename': 'rnn-arch-opt-best_sin.hdf5',
-    'dropout': 0.5,
-    'epochs': 100,
-    'dense_activation': 'tanh'}
-problems['sin']['opt_params'] = {
-    'max_hl': 3, #max n of hidden layers
-    'min_nn': 1,
-    'max_nn': 100, #max n of nn per layer
-    'min_lb': 2,
-    'max_lb': 30, #max look back
-    'max_eval': 100,
-    'max_iter': 100,
-    'n_init_samples': 10,
-    'data_loader_class': 'loaders.SinDataLoader'}
-
-problems['waste'] = {}
-problems['waste']['data_loader_params'] = {
-    "filename": "../../data/waste/rubbish-2013.csv",
+if problem is 'test':
+  data_loader_params = {'freq': 1,
+                        'start': 0,
+                        'stop': 100,
+                        'step': 0.1,
+                        'x_features': ['sin'],
+                        'y_features': ['sin'],
+                        'training_ratio' : 0.8,
+                        'validation_ratio' : 0.2,
+                        'batch_size': 5}
+  etc_params = {'model_filename': 'rnn-arch-opt-best_test.hdf5',
+                'dropout': 0.5,
+                'epochs': 5,
+                'dense_activation': 'tanh',
+                'min_hl': 1,
+                'max_hl': 3, #max n of hidden layers
+                'min_nn': 1,
+                'max_nn': 100, #max n of nn per layer
+                'min_lb': 2,
+                'max_lb': 30, #max look back
+                'max_eval': 3,
+                'data_loader_class': 'loaders.SinDataLoader'}
+elif problem is 'sin':
+  data_loader_params = {'freq': 1,
+                        'start': 0,
+                        'stop': 100,
+                        'step': 0.1,
+                        'x_features': ['sin'],
+                        'y_features': ['sin'],
+                        'training_ratio' : 0.8,
+                        'validation_ratio' : 0.2,
+                        'batch_size': 5}
+  etc_params = {'model_filename': 'rnn-arch-opt-best_sin.hdf5',
+                'dropout': 0.5,
+                'epochs': 100,
+                'dense_activation': 'tanh',
+                'min_hl': 1,
+                'max_hl': 3, #max n of hidden layers
+                'min_nn': 1,
+                'max_nn': 100, #max n of nn per layer
+                'min_lb': 2,
+                'max_lb': 30, #max look back
+                'max_eval': 30,
+                'data_loader_class': 'loaders.SinDataLoader'}
+elif problem is 'waste':
+  data_loader_params = {"filename": "../../data/waste/rubbish-2013.csv",
     "batch_size" : 5,
     "training_ratio": 0.8,
     "validation_ratio": 0.2,
@@ -134,85 +112,47 @@ problems['waste']['data_loader_params'] = {
                "C-A64", "C-A65", "C-A67", "C-A68", "C-A69", "C-A7", "C-A70", "C-A73", "C-A74", "C-A76", 
                "C-A77", "C-A78", "C-A79", "C-A8", "C-A80", "C-A81", "C-A83", "C-A84", "C-A85", "C-A86", 
                "C-A89", "C-A9", "C-A90", "C-A93", "C-A96", "C-A98", "C-A99"]}
-problems['waste']['etc_params'] = {
-    'num_samples': 100,
-    'truncated_lower': 0.0,
-    'truncated_upper': 1.0,
-    'threshold': 0.01,
-    'model_filename': 'rnn-arch-opt-best_waste.hdf5',
-    'dropout': 0.5,
-    'epochs': 100,
-    'dense_activation': 'sigmoid'}
-problems['waste']['opt_params'] = {
-    'max_hl': 8, #max n of hidden layers
-    'min_nn': 10,
-    'max_nn': 300, #max n of nn per layer
-    'min_lb': 2,
-    'max_lb': 30, #max look back
-    'max_eval': 100,
-    'max_iter': 100,
-    'n_init_samples': 10,
-    'data_loader_class': 'loaders.RubbishDataLoader'}
+  etc_params = {'model_filename': 'rnn-arch-opt-best_waste.hdf5',
+                'dropout': 0.5,
+                'epochs': 100,
+                'dense_activation': 'sigmoid',
+                'min_hl': 1,
+                'max_hl': 8, #max n of hidden layers
+                'min_nn': 10,
+                'max_nn': 300, #max n of nn per layer
+                'min_lb': 2,
+                'max_lb': 30, #max look back
+                'max_eval': 30,
+                'data_loader_class': 'loaders.RubbishDataLoader'}
 
-def decode_solution(x, input_dim, output_dim, **kwargs):
+def random_solution(input_dim, output_dim, min_lb=1, max_lb=30, min_nn=1, max_nn=100, min_hl=1, max_hl=3, **kwargs):
   global verbose
-  print(x)
-  cells = dict(filter(lambda elem: elem[0].startswith('cells_per_layer_'), x.items()))
-  cells = sorted(cells.items())
-  layers = dict(filter(lambda elem: elem[0].startswith('layer_'), x.items()))
-  layers = sorted(layers.items())
-  hidden = []
-  for c, l in zip(cells, layers):
-    if l[1] == 'Y':
-      hidden.append(c[1])
-
-  if len(hidden) == 0:
-    return None, None, None
-  architecture = [input_dim] + hidden + [output_dim]
-  print(architecture)
+  num_layers = np.random.randint(low=min_hl,
+                                 high=(max_hl + 1))
+  hidden = np.random.randint(low=min_nn,
+                             high=(max_nn + 1),
+                             size=num_layers)
+  look_back = np.random.randint(low=min_lb,
+                                high=(max_lb + 1))
+  architecture = [input_dim] + hidden.tolist() + [output_dim]
   model = nn_builder_class.build_model(architecture,
                                        verbose=verbose,
                                        **kwargs)
-  look_back = x['look_back']
+
   solution_id = str(architecture) + '+' + str(look_back)
+  print(solution_id)
   return model, look_back, solution_id
 
 
-nn_eval = 1
 lookup = {}
-# The "black-box" objective function
-def obj_func(x):
-  global nn_eval
-  global dataset
-  global etc_params
-  global random_seed
+#Gradien-based NN optimization
+def train_solution(dataset, **kwargs):
+  model, look_back, solution_id = random_solution(input_dim=dataset.input_dim, output_dim=dataset.output_dim, **kwargs)
   global lookup
-  print("### " + str(nn_eval) + " ######################################")
-  nn_eval += 1
-  model, look_back, solution_id = decode_solution(x, dataset.input_dim, dataset.output_dim, **etc_params)
-  if model is None:
-    print("{'log_p': -10000, 'warning': 'null architecture'}")
-    return -10000
   if solution_id in lookup:    
     print("# Already computed solution")
     return lookup[solution_id]
-  sampler = samp.MAERandomSampling(random_seed)
-  #TODO copy the dataset before changing the look_back param   
-  dataset.testing_data.look_back = look_back
-  metrics = sampler.fit(model=model,
-                        data=dataset.testing_data,
-                        **etc_params)
-  print(metrics)
-  lookup[solution_id] = metrics['log_p']
-  return metrics['log_p']
-
-
-#Gradien-based NN optimization
-def train_solution(x, dataset, **kwargs):
-  model, look_back, solution_id = decode_solution(x, dataset.input_dim, dataset.output_dim, **kwargs)
-  if model is None:
-    print("Imposible to train a null model")
-    return None
+  print("### Start Training ######################################")
   start = time.time()
   trainer = nn_trainer_class(verbose=verbose,
                              **kwargs)
@@ -233,7 +173,9 @@ def train_solution(x, dataset, **kwargs):
   metrics, pred = trainer.evaluate(dataset.testing_data,
                                    **kwargs)
   evaluation_time = time.time() - start
+  print("### End Training ######################################")
   metrics['evaluation_time'] = evaluation_time
+  lookup[solution_id] = (model, metrics, pred)
   return model, metrics, pred
 
 
@@ -248,61 +190,24 @@ if __name__ == '__main__':
                       type=int,
                       default=0,
                       help='Verbose level. 0=silent, 1=verbose, 2=debug.')
-  parser.add_argument('--problem',
-                      type=str,
-                      default='test',
-                      help='Available problems: ' + str(problems.keys()) )
   flags, unparsed = parser.parse_known_args()
   random_seed = flags.seed
   verbose = flags.verbose
-  print("Problem: " + flags.problem)
-  data_loader_params = problems[flags.problem]['data_loader_params']
-  etc_params = problems[flags.problem]['etc_params']
-  opt_params = problems[flags.problem]['opt_params']
+  print("Problem: " + problem)
   #Load the data
   #TODO when using DLOPT config this is not necessary
-  data_loader = ut.load_class_from_str(opt_params['data_loader_class'])()
+  data_loader = ut.load_class_from_str(etc_params['data_loader_class'])()
   #instead, use just...
-  #data_loader = opt_params['data_loader_class']()
+  #data_loader = etc_params['data_loader_class']()
   data_loader.load(**data_loader_params)
   dataset = data_loader.dataset
-  #Define the search space
-  cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
-  look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
-  layer = NominalSpace(['Y', 'N'], 'layer') * opt_params['max_hl']
-
-  search_space = cells_per_layer * layer * look_back
-
-  #next we define the surrogate model and the optimizer.
-  model = RandomForest(levels=search_space.levels)
-  opt = mipego(search_space,
-               obj_func,
-               model, 
-               minimize=False,
-               max_eval=opt_params['max_eval'],
-               max_iter=opt_params['max_iter'],
-               infill='EI',       #Expected improvement as criteria
-               n_init_sample=opt_params['n_init_samples'],  #We start with 10 initial samples
-               n_point=1,         #We evaluate every iteration 1 time
-               n_job=1,           #  with 1 process (job).
-               optimizer='MIES',  #We use the MIES internal optimizer.
-               verbose=True,
-               log_file=etc_params['model_filename'].replace('.hdf5',
-                                                             '_' + str(random_seed) + '.log'),
-               random_seed=random_seed)
-
-  print("### Begin Optimization ######################################")
-  incumbent, stop_dict = opt.run()
-  print(stop_dict)
-  x = incumbent.to_dict()
-  # x = {'cells_per_layer_0': 12, 'cells_per_layer_1': 20, 'cells_per_layer_2': 76, 'layer_0': 'N', 'layer_1': 'N', 'layer_2': 'Y', 'look_back': 5, 'garbage': 0.11725690809327188}
-  print("Best solution: " + str(x))
-  print("### End Optimization ######################################")
-
-  print("### Start Training ######################################")
-  etc_params['model_filename'] = etc_params['model_filename'].replace('.hdf5',
-                                                                      '_' + str(random_seed) + '.hdf5')
-  model, metrics, pred = train_solution(x, dataset, **etc_params)
-  print(metrics)
-  print(pred)
-  print("### End Training ######################################")
+  model_filename = etc_params['model_filename'].replace('.hdf5',
+                                                        '_' + str(random_seed) + '.hdf5')
+  for i in range(etc_params['max_eval']):
+    print("### Random Search " + str(i) + " ######################################")
+    etc_params['model_filename'] = model_filename.replace('.hdf5',
+                                                          '_' + str(i) + '.hdf5')
+    print(etc_params['model_filename'])
+    model, metrics, pred = train_solution(dataset, **etc_params)
+    print(metrics)
+    print(pred)
