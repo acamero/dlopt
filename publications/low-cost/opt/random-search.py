@@ -12,59 +12,62 @@ from dlopt import util as ut
 
 
 #TODO: move the params to a configutarion file
-available_problems = ['test', 'sin', 'waste']
-problem = available_problems[1]
-
 data_loader_params = {} # passed to the data loader
 etc_params = {} # sampler and training params
 
 
-if problem is 'test':
-  data_loader_params = {'freq': 1,
-                        'start': 0,
-                        'stop': 100,
-                        'step': 0.1,
-                        'x_features': ['sin'],
-                        'y_features': ['sin'],
-                        'training_ratio' : 0.8,
-                        'validation_ratio' : 0.2,
-                        'batch_size': 5}
-  etc_params = {'model_filename': 'rnn-arch-opt-best_test.hdf5',
-                'dropout': 0.5,
-                'epochs': 5,
-                'dense_activation': 'tanh',
-                'min_hl': 1,
-                'max_hl': 3, #max n of hidden layers
-                'min_nn': 1,
-                'max_nn': 100, #max n of nn per layer
-                'min_lb': 2,
-                'max_lb': 30, #max look back
-                'max_eval': 3,
-                'data_loader_class': 'loaders.SinDataLoader'}
-elif problem is 'sin':
-  data_loader_params = {'freq': 1,
-                        'start': 0,
-                        'stop': 100,
-                        'step': 0.1,
-                        'x_features': ['sin'],
-                        'y_features': ['sin'],
-                        'training_ratio' : 0.8,
-                        'validation_ratio' : 0.2,
-                        'batch_size': 5}
-  etc_params = {'model_filename': 'rnn-arch-opt-best_sin.hdf5',
-                'dropout': 0.5,
-                'epochs': 100,
-                'dense_activation': 'tanh',
-                'min_hl': 1,
-                'max_hl': 3, #max n of hidden layers
-                'min_nn': 1,
-                'max_nn': 100, #max n of nn per layer
-                'min_lb': 2,
-                'max_lb': 30, #max look back
-                'max_eval': 30,
-                'data_loader_class': 'loaders.SinDataLoader'}
-elif problem is 'waste':
-  data_loader_params = {"filename": "../../data/waste/rubbish-2013.csv",
+problems = {}
+problems['test'] = {}
+problems['test']['data_loader_params'] = {
+    'freq': 1,
+    'start': 0,
+    'stop': 100,
+    'step': 0.1,
+    'x_features': ['sin'],
+    'y_features': ['sin'],
+    'training_ratio' : 0.8,
+    'validation_ratio' : 0.2,
+    'batch_size': 5}
+problems['test']['etc_params'] = {
+    'model_filename': 'rnn-arch-opt-best_test.hdf5',
+    'dropout': 0.5,
+    'epochs': 5,
+    'dense_activation': 'tanh',
+    'max_hl': 3, #max n of hidden layers
+    'min_nn': 1,
+    'max_nn': 100, #max n of nn per layer
+    'min_lb': 2,
+    'max_lb': 30, #max look back
+    'max_eval': 5,
+    'data_loader_class': 'loaders.SinDataLoader'}
+
+problems['sin'] = {}
+problems['sin']['data_loader_params'] = {
+    'freq': 1,
+    'start': 0,
+    'stop': 100,
+    'step': 0.1,
+    'x_features': ['sin'],
+    'y_features': ['sin'],
+    'training_ratio' : 0.8,
+    'validation_ratio' : 0.2,
+    'batch_size': 5}
+problems['sin']['etc_params'] = {
+    'model_filename': 'rnn-arch-opt-best_sin.hdf5',
+    'dropout': 0.5,
+    'epochs': 100,
+    'dense_activation': 'tanh',
+    'max_hl': 3, #max n of hidden layers
+    'min_nn': 1,
+    'max_nn': 100, #max n of nn per layer
+    'min_lb': 2,
+    'max_lb': 30, #max look back
+    'max_eval': 100,
+    'data_loader_class': 'loaders.SinDataLoader'}
+
+problems['waste'] = {}
+problems['waste']['data_loader_params'] = {
+    "filename": "rubbish-2013.csv",
     "batch_size" : 5,
     "training_ratio": 0.8,
     "validation_ratio": 0.2,
@@ -112,18 +115,24 @@ elif problem is 'waste':
                "C-A64", "C-A65", "C-A67", "C-A68", "C-A69", "C-A7", "C-A70", "C-A73", "C-A74", "C-A76", 
                "C-A77", "C-A78", "C-A79", "C-A8", "C-A80", "C-A81", "C-A83", "C-A84", "C-A85", "C-A86", 
                "C-A89", "C-A9", "C-A90", "C-A93", "C-A96", "C-A98", "C-A99"]}
-  etc_params = {'model_filename': 'rnn-arch-opt-best_waste.hdf5',
-                'dropout': 0.5,
-                'epochs': 100,
-                'dense_activation': 'sigmoid',
-                'min_hl': 1,
-                'max_hl': 8, #max n of hidden layers
-                'min_nn': 10,
-                'max_nn': 300, #max n of nn per layer
-                'min_lb': 2,
-                'max_lb': 30, #max look back
-                'max_eval': 30,
-                'data_loader_class': 'loaders.RubbishDataLoader'}
+problems['waste']['etc_params'] = {
+    'num_samples': 100,
+    'truncated_lower': 0.0,
+    'truncated_upper': 1.0,
+    'threshold': 0.01,
+    'model_filename': 'rnn-arch-opt-best_waste.hdf5',
+    'dropout': 0.5,
+    'epochs': 100,
+    'dense_activation': 'sigmoid',
+    'max_hl': 8, #max n of hidden layers
+    'min_nn': 10,
+    'max_nn': 300, #max n of nn per layer
+    'min_lb': 2,
+    'max_lb': 30, #max look back
+    'max_eval': 100,
+    'data_loader_class': 'loaders.RubbishDataLoader'}
+
+
 
 def random_solution(input_dim, output_dim, min_lb=1, max_lb=30, min_nn=1, max_nn=100, min_hl=1, max_hl=3, **kwargs):
   global verbose
@@ -190,10 +199,18 @@ if __name__ == '__main__':
                       type=int,
                       default=0,
                       help='Verbose level. 0=silent, 1=verbose, 2=debug.')
+  parser.add_argument('--problem',
+                      type=str,
+                      default='test',
+                      help='Available problems: ' + str(problems.keys()) )
+
   flags, unparsed = parser.parse_known_args()
   random_seed = flags.seed
   verbose = flags.verbose
-  print("Problem: " + problem)
+  print("Problem: " + flags.problem)
+  data_loader_params = problems[flags.problem]['data_loader_params']
+  etc_params = problems[flags.problem]['etc_params']
+
   #Load the data
   #TODO when using DLOPT config this is not necessary
   data_loader = ut.load_class_from_str(etc_params['data_loader_class'])()

@@ -154,7 +154,9 @@ class MAERandomSampling(RandomSamplingFit):
                                     loc=mean,
                                     scale=std)
         if p_threshold == 0:
-            log_p = np.finfo(float).min
+            # log_p = np.finfo(float).min
+            # Some software, e.g., mipego, have trouble dealing with long floats...
+            log_p = np.log(1e-300)
         else:
             log_p = np.log(p_threshold)
         sampling_time = time.time() - start

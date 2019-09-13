@@ -154,7 +154,12 @@ problems['waste']['opt_params'] = {
     'n_init_samples': 10,
     'data_loader_class': 'loaders.RubbishDataLoader'}
 
+
 def decode_solution(x, input_dim, output_dim, **kwargs):
+  raise Exception("Function decode_solution is not defined")
+  # return model, look_back, solution_id
+
+def decode_solution_flag(x, input_dim, output_dim, **kwargs):
   global verbose
   print(x)
   cells = dict(filter(lambda elem: elem[0].startswith('cells_per_layer_'), x.items()))
@@ -165,6 +170,28 @@ def decode_solution(x, input_dim, output_dim, **kwargs):
   for c, l in zip(cells, layers):
     if l[1] == 'Y':
       hidden.append(c[1])
+
+  if len(hidden) == 0:
+    return None, None, None
+  architecture = [input_dim] + hidden + [output_dim]
+  print(architecture)
+  model = nn_builder_class.build_model(architecture,
+                                       verbose=verbose,
+                                       **kwargs)
+  look_back = x['look_back']
+  solution_id = str(architecture) + '+' + str(look_back)
+  return model, look_back, solution_id
+
+
+def decode_solution_size(x, input_dim, output_dim, **kwargs):
+  global verbose
+  print(x)
+  cells = dict(filter(lambda elem: elem[0].startswith('cells_per_layer_'), x.items()))
+  cells = sorted(cells.items())
+  size = x['size']  
+  hidden = []
+  for c in cells[:size]:
+    hidden.append(c[1])
 
   if len(hidden) == 0:
     return None, None, None
@@ -252,6 +279,10 @@ if __name__ == '__main__':
                       type=str,
                       default='test',
                       help='Available problems: ' + str(problems.keys()) )
+  parser.add_argument('--encoding',
+                      type=str,
+                      default='flag',
+                      help='Available encodings: flag, size' )
   flags, unparsed = parser.parse_known_args()
   random_seed = flags.seed
   verbose = flags.verbose
@@ -266,12 +297,29 @@ if __name__ == '__main__':
   #data_loader = opt_params['data_loader_class']()
   data_loader.load(**data_loader_params)
   dataset = data_loader.dataset
+  
   #Define the search space
-  cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
-  look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
-  layer = NominalSpace(['Y', 'N'], 'layer') * opt_params['max_hl']
+  search_space = None
+  print("Encoding: " + flags.encoding)
+  if flags.encoding == 'flag':
+    cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
+    look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
+    layer = NominalSpace(['Y', 'N'], 'layer') * opt_params['max_hl']
+    search_space = cells_per_layer * layer * look_back
+    #assign the right decode function
+    decode_solution = decode_solution_flag
+  elif flags.encoding == 'size':
+    cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
+    look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
+    #size = OrdinalSpace([1, opt_params['max_hl']], 'size')
+    size = NominalSpace(list(range(1, opt_params['max_hl']+1)), 'size')
+    search_space = cells_per_layer * size * look_back
+    #assign the right decode function
+    decode_solution = decode_solution_size
+  else:
+    raise Exception("Invalid encoding")
 
-  search_space = cells_per_layer * layer * look_back
+
 
   #next we define the surrogate model and the optimizer.
   model = RandomForest(levels=search_space.levels)
