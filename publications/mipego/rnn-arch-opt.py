@@ -3,13 +3,13 @@ import numpy as np
 import time
 import argparse
 import sys
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 #import our package, the surrogate model and the search space classes
 from mipego import mipego
 from mipego.Surrogate import RandomForest
 from mipego.SearchSpace import ContinuousSpace, NominalSpace, OrdinalSpace
 
-# from sin import SinDataLoader
 from dlopt.nn import RNNBuilder as nn_builder_class
 from dlopt.nn import TrainGradientBased as nn_trainer_class
 from dlopt import sampling as samp
@@ -141,7 +141,7 @@ problems['waste']['etc_params'] = {
     'threshold': 0.01,
     'model_filename': 'rnn-arch-opt-best_waste.hdf5',
     'dropout': 0.5,
-    'epochs': 100,
+    'epochs': 1000,
     'dense_activation': 'sigmoid'}
 problems['waste']['opt_params'] = {
     'max_hl': 8, #max n of hidden layers
@@ -153,6 +153,42 @@ problems['waste']['opt_params'] = {
     'max_iter': 100,
     'n_init_samples': 10,
     'data_loader_class': 'loaders.RubbishDataLoader'}
+
+problems['eunite'] = {}
+problems['eunite']['data_loader_params'] = {
+    'training_filename': '../../data/eunite/eunite.training.csv',
+    'testing_filename': '../../data/eunite/eunite.testing.csv',
+    'x_features': ["X00.30","X01.00","X01.30","X02.00","X02.30","X03.00","X03.30","X04.00",
+                   "X04.30","X05.00","X05.30","X06.00","X06.30","X07.00","X07.30","X08.00",
+                   "X08.30","X09.00","X09.30","X10.00","X10.30","X11.00","X11.30","X12.00",
+                   "X12.30","X13.00","X13.30","X14.00","X14.30","X15.00","X15.30","X16.00",
+                   "X16.30","X17.00","X17.30","X18.00","X18.30","X19.00","X19.30","X20.00",
+                   "X20.30","X21.00","X21.30","X22.00","X22.30","X23.00","X23.30","X24.00",
+                   "MaxLoads","Temperature","Holiday","Weekday"],
+    'y_features': ["MaxLoads"],
+    'validation_ratio' : 0.2,
+    'batch_size': 5,
+    'max_look_back': 30,
+    'scaler_fn': StandardScaler}
+problems['eunite']['etc_params'] = {
+    'num_samples': 100,
+    'truncated_lower': 0.0,
+    'truncated_upper': 100.0,
+    'threshold': 0.01,
+    'model_filename': 'rnn-arch-opt-best_eunite.hdf5',
+    'dropout': 0.5,
+    'epochs': 1000,
+    'dense_activation': 'linear'}
+problems['eunite']['opt_params'] = {
+    'max_hl': 8, #max n of hidden layers
+    'min_nn': 10,
+    'max_nn': 100, #max n of nn per layer
+    'min_lb': 2,
+    'max_lb': 30, #max look back
+    'max_eval': 100,
+    'max_iter': 100,
+    'n_init_samples': 10,
+    'data_loader_class': 'loaders.EuniteDataLoader'}
 
 
 def decode_solution(x, input_dim, output_dim, **kwargs):
@@ -300,6 +336,7 @@ if __name__ == '__main__':
   
   #Define the search space
   search_space = None
+  model = None
   print("Encoding: " + flags.encoding)
   if flags.encoding == 'flag':
     cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
@@ -308,21 +345,20 @@ if __name__ == '__main__':
     search_space = cells_per_layer * layer * look_back
     #assign the right decode function
     decode_solution = decode_solution_flag
+    model = RandomForest(levels=search_space.levels)
   elif flags.encoding == 'size':
     cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
     look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
-    #size = OrdinalSpace([1, opt_params['max_hl']], 'size')
-    size = NominalSpace(list(range(1, opt_params['max_hl']+1)), 'size')
+    size = OrdinalSpace([1, opt_params['max_hl']], 'size')
+    # size = NominalSpace(list(range(1, opt_params['max_hl']+1)), 'size')
     search_space = cells_per_layer * size * look_back
     #assign the right decode function
     decode_solution = decode_solution_size
+    model = RandomForest()
+    # model = RandomForest(levels=search_space.levels)
   else:
     raise Exception("Invalid encoding")
-
-
-
-  #next we define the surrogate model and the optimizer.
-  model = RandomForest(levels=search_space.levels)
+  
   opt = mipego(search_space,
                obj_func,
                model, 
@@ -353,4 +389,8 @@ if __name__ == '__main__':
   model, metrics, pred = train_solution(x, dataset, **etc_params)
   print(metrics)
   print(pred)
+  if hasattr(data_loader, 'inverse_transform'):
+    pred_real = data_loader.inverse_transform(dataset.testing_data, pred)
+    print("Real (inversed) predicted values")
+    print(pred_real)
   print("### End Training ######################################")

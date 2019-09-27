@@ -3,7 +3,7 @@ Requirements   = Machine == "mc3.lcc.uma.es" || Machine == "mc1.lcc.uma.es" || M
 RequestCPUs    = 1 
 Request_memory = 4G
 Executable     = autorun.sh
-Arguments      = "$(Process) sin"
+Arguments      = "$(Process) sin flag"
 Output         = logs/sin_output.$(Process).out
 Error          = logs/sin_error.$(Process).err
 Log            = logs/sin_log.$(Process).log

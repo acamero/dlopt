@@ -122,14 +122,14 @@ problems['waste']['etc_params'] = {
     'threshold': 0.01,
     'model_filename': 'rnn-arch-opt-best_waste.hdf5',
     'dropout': 0.5,
-    'epochs': 100,
+    'epochs': 1000,
     'dense_activation': 'sigmoid',
     'max_hl': 8, #max n of hidden layers
     'min_nn': 10,
     'max_nn': 300, #max n of nn per layer
     'min_lb': 2,
     'max_lb': 30, #max look back
-    'max_eval': 100,
+    'max_eval': 30,
     'data_loader_class': 'loaders.RubbishDataLoader'}
 
 

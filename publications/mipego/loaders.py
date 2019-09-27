@@ -115,11 +115,84 @@ class RubbishDataLoader(ut.DataLoader):
                                input_dim=len(self.params['x_features']),
                                output_dim=len(self.params['y_features']))
 
+
+class EuniteDataLoader(ut.DataLoader):
+    """ Load the EUNITE (load forecasting) dataset
+    training_filename    file containing the training data
+    testing_filename    file containing the training data
+    """
+    params = {'training_filename': None,
+              'testing_filename': None,
+              'x_features' : None,
+              'y_features' : None,
+              'batch_size' : None,
+              'validation_ratio' : None,
+              'max_look_back': None,
+              'scaler_fn': None}
+
+    scaler = None
+
+    def load(self,
+             **kwargs):
+        self.params.update(kwargs)
+        if self.params['training_filename'] is None:
+            raise Exception("A 'training_filename' must be provided")
+        if self.params['testing_filename'] is None:
+            raise Exception("A 'testing_filename' must be provided")
+        if self.params['x_features'] is None:
+            raise Exception("A 'x_features' list must be provided")
+        if self.params['y_features'] is None:
+            raise Exception("A 'y_features' list must be provided")
+        if self.params['batch_size'] is None:
+            raise Exception("A 'batch_size' must be provided")       
+        if self.params['validation_ratio'] is None:
+            raise Exception("A 'validation_ratio' must be provided")
+        if self.params['max_look_back'] is None:
+            raise Exception("A 'max_look_back' must be provided")
+        if self.params['scaler_fn'] is None:
+            raise Exception("A 'scaler function' must be provided")
+        df_tr = pd.read_csv(self.params['training_filename'])
+        df_ts = pd.read_csv(self.params['testing_filename'])
+        df = pd.concat([df_tr, df_ts])
+        df = df[list(set(self.params['x_features'] + self.params['y_features']))]
+        self.scaler = self.params['scaler_fn']()
+        df = pd.DataFrame(self.scaler.fit_transform(df),
+                          columns=df.columns)
+        validation_split = int((1 - self.params['validation_ratio']) * df_tr.shape[0])
+        training_data = TimeSeriesDataset(df[:validation_split],
+                                          self.params['x_features'],
+                                          self.params['y_features'],
+                                          batch_size=self.params['batch_size'])
+        validation_data = TimeSeriesDataset(df[validation_split:df_tr.shape[0]],
+                                            self.params['x_features'],
+                                            self.params['y_features'],
+                                            batch_size=self.params['batch_size'])
+        testing_data = TimeSeriesDataset(df[(df_tr.shape[0] - self.params['max_look_back']):],
+                                         self.params['x_features'],
+                                         self.params['y_features'],
+                                         batch_size=self.params['batch_size'])
+        self.dataset = Dataset(training_data,
+                               validation_data,
+                               testing_data,
+                               input_dim=len(self.params['x_features']),
+                               output_dim=len(self.params['y_features']))
+
     def inverse_transform(self,
-                          df):
+                          dataset,
+                          pred):
         if self.scaler is None:
             return df
+        df_pred = None
+        if isinstance(pred, np.ndarray):
+            df_pred = pd.DataFrame(pred, columns=dataset.y_features)
+        elif isinstance(pred, np.ndarray):
+            df_pred = pred
         else:
-            inversed = pd.DataFrame(self.scaler.inverse_transform(df),
-                                    columns=df.columns)
-            return inversed
+            raise Exception("Please provide a valid 'pred' (numpy ndarray or pandas DF)")
+        _df = dataset.df.tail(df_pred.shape[0])
+        _df =_df.drop(dataset.y_features, axis=1)
+        _df = pd.concat([_df, df_pred.set_index(_df.index)], axis=1)
+        inversed = pd.DataFrame(
+            self.scaler.inverse_transform(_df[list(set(dataset.x_features + dataset.y_features))]),
+            columns=list(set(dataset.x_features + dataset.y_features)))
+        return inversed[dataset.y_features]
