@@ -3,7 +3,6 @@ import numpy as np
 import time
 import argparse
 import sys
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 #import our package, the surrogate model and the search space classes
 from mipego import mipego
@@ -15,189 +14,64 @@ from dlopt.nn import TrainGradientBased as nn_trainer_class
 from dlopt import sampling as samp
 from dlopt import util as ut
 
+from problems import get_problems
+
 
 #TODO: move the params to a configutarion file
 data_loader_params = {} # passed to the data loader
 etc_params = {} # sampler and training params
 opt_params = {} # problem and mip-ego params
-
-problems = {}
-problems['test'] = {}
-problems['test']['data_loader_params'] = {
-    'freq': 1,
-    'start': 0,
-    'stop': 100,
-    'step': 0.1,
-    'x_features': ['sin'],
-    'y_features': ['sin'],
-    'training_ratio' : 0.8,
-    'validation_ratio' : 0.2,
-    'batch_size': 5}
-problems['test']['etc_params'] = {
-    'num_samples': 30,
-    'truncated_lower': 0.0,
-    'truncated_upper': 2.0,
-    'threshold': 0.01,
-    'model_filename': 'rnn-arch-opt-best_test.hdf5',
-    'dropout': 0.5,
-    'epochs': 5,
-    'dense_activation': 'tanh'}
-problems['test']['opt_params'] = {
-    'max_hl': 3, #max n of hidden layers
-    'min_nn': 1,
-    'max_nn': 100, #max n of nn per layer
-    'min_lb': 2,
-    'max_lb': 30, #max look back
-    'max_eval': 5,
-    'max_iter': 100,
-    'n_init_samples': 2,
-    'data_loader_class': 'loaders.SinDataLoader'}
-
-problems['sin'] = {}
-problems['sin']['data_loader_params'] = {
-    'freq': 1,
-    'start': 0,
-    'stop': 100,
-    'step': 0.1,
-    'x_features': ['sin'],
-    'y_features': ['sin'],
-    'training_ratio' : 0.8,
-    'validation_ratio' : 0.2,
-    'batch_size': 5}
-problems['sin']['etc_params'] = {
-    'num_samples': 100,
-    'truncated_lower': 0.0,
-    'truncated_upper': 2.0,
-    'threshold': 0.01,
-    'model_filename': 'rnn-arch-opt-best_sin.hdf5',
-    'dropout': 0.5,
-    'epochs': 100,
-    'dense_activation': 'tanh'}
-problems['sin']['opt_params'] = {
-    'max_hl': 3, #max n of hidden layers
-    'min_nn': 1,
-    'max_nn': 100, #max n of nn per layer
-    'min_lb': 2,
-    'max_lb': 30, #max look back
-    'max_eval': 100,
-    'max_iter': 100,
-    'n_init_samples': 10,
-    'data_loader_class': 'loaders.SinDataLoader'}
-
-problems['waste'] = {}
-problems['waste']['data_loader_params'] = {
-    "filename": "../../data/waste/rubbish-2013.csv",
-    "batch_size" : 5,
-    "training_ratio": 0.8,
-    "validation_ratio": 0.2,
-    "x_features": ["C-A100", "C-A107", "C-A108", "C-A109", "C-A11", "C-A110", "C-A111", "C-A112", "C-A113", "C-A115", 
-               "C-A117", "C-A119", "C-A12", "C-A120", "C-A121", "C-A122", "C-A123", "C-A124", "C-A125", "C-A126", 
-               "C-A127", "C-A128", "C-A129", "C-A13", "C-A130", "C-A132", "C-A133", "C-A134", "C-A135", "C-A136", 
-               "C-A137", "C-A139", "C-A14", "C-A140", "C-A141", "C-A142", "C-A144", "C-A146", "C-A147", "C-A148", 
-               "C-A15", "C-A151", "C-A155", "C-A156", "C-A16", "C-A160", "C-A163", "C-A164", "C-A166", "C-A167", 
-               "C-A168", "C-A169", "C-A17", "C-A170", "C-A171", "C-A172", "C-A173", "C-A174", "C-A175", "C-A176", 
-               "C-A177", "C-A178", "C-A179", "C-A18", "C-A181", "C-A183", "C-A184", "C-A185", "C-A187", "C-A189", 
-               "C-A191", "C-A192", "C-A193", "C-A194", "C-A195", "C-A196", "C-A197", "C-A198", "C-A199", "C-A2", 
-               "C-A20", "C-A204", "C-A206", "C-A207", "C-A208", "C-A21", "C-A210", "C-A211", "C-A212", "C-A213", 
-               "C-A214", "C-A215", "C-A216", "C-A218", "C-A22", "C-A220", "C-A221", "C-A223", "C-A225", "C-A227", 
-               "C-A228", "C-A232", "C-A235", "C-A236", "C-A237", "C-A238", "C-A239", "C-A241", "C-A242", "C-A244", 
-               "C-A248", "C-A249", "C-A25", "C-A250", "C-A251", "C-A252", "C-A254", "C-A255", "C-A256", "C-A257", 
-               "C-A258", "C-A259", "C-A26", "C-A260", "C-A261", "C-A266", "C-A27", "C-A270", "C-A271", "C-A272", 
-               "C-A273", "C-A274", "C-A277", "C-A279", "C-A28", "C-A280", "C-A282", "C-A283", "C-A284", "C-A286", 
-               "C-A287", "C-A288", "C-A289", "C-A290", "C-A294", "C-A299", "C-A3", "C-A300", "C-A302", "C-A303", 
-               "C-A304", "C-A305", "C-A308", "C-A309", "C-A31", "C-A310", "C-A312", "C-A313", "C-A316", "C-A317", 
-               "C-A318", "C-A319", "C-A32", "C-A321", "C-A322", "C-A324", "C-A328", "C-A329", "C-A35", "C-A36", 
-               "C-A37", "C-A38", "C-A39", "C-A40", "C-A41", "C-A44", "C-A46", "C-A47", "C-A49", "C-A51", 
-               "C-A52", "C-A54", "C-A55", "C-A56", "C-A57", "C-A59", "C-A6", "C-A61", "C-A62", "C-A63", 
-               "C-A64", "C-A65", "C-A67", "C-A68", "C-A69", "C-A7", "C-A70", "C-A73", "C-A74", "C-A76", 
-               "C-A77", "C-A78", "C-A79", "C-A8", "C-A80", "C-A81", "C-A83", "C-A84", "C-A85", "C-A86", 
-               "C-A89", "C-A9", "C-A90", "C-A93", "C-A96", "C-A98", "C-A99"],
-    "y_features": ["C-A100", "C-A107", "C-A108", "C-A109", "C-A11", "C-A110", "C-A111", "C-A112", "C-A113", "C-A115", 
-               "C-A117", "C-A119", "C-A12", "C-A120", "C-A121", "C-A122", "C-A123", "C-A124", "C-A125", "C-A126", 
-               "C-A127", "C-A128", "C-A129", "C-A13", "C-A130", "C-A132", "C-A133", "C-A134", "C-A135", "C-A136", 
-               "C-A137", "C-A139", "C-A14", "C-A140", "C-A141", "C-A142", "C-A144", "C-A146", "C-A147", "C-A148", 
-               "C-A15", "C-A151", "C-A155", "C-A156", "C-A16", "C-A160", "C-A163", "C-A164", "C-A166", "C-A167", 
-               "C-A168", "C-A169", "C-A17", "C-A170", "C-A171", "C-A172", "C-A173", "C-A174", "C-A175", "C-A176", 
-               "C-A177", "C-A178", "C-A179", "C-A18", "C-A181", "C-A183", "C-A184", "C-A185", "C-A187", "C-A189", 
-               "C-A191", "C-A192", "C-A193", "C-A194", "C-A195", "C-A196", "C-A197", "C-A198", "C-A199", "C-A2", 
-               "C-A20", "C-A204", "C-A206", "C-A207", "C-A208", "C-A21", "C-A210", "C-A211", "C-A212", "C-A213", 
-               "C-A214", "C-A215", "C-A216", "C-A218", "C-A22", "C-A220", "C-A221", "C-A223", "C-A225", "C-A227", 
-               "C-A228", "C-A232", "C-A235", "C-A236", "C-A237", "C-A238", "C-A239", "C-A241", "C-A242", "C-A244", 
-               "C-A248", "C-A249", "C-A25", "C-A250", "C-A251", "C-A252", "C-A254", "C-A255", "C-A256", "C-A257", 
-               "C-A258", "C-A259", "C-A26", "C-A260", "C-A261", "C-A266", "C-A27", "C-A270", "C-A271", "C-A272", 
-               "C-A273", "C-A274", "C-A277", "C-A279", "C-A28", "C-A280", "C-A282", "C-A283", "C-A284", "C-A286", 
-               "C-A287", "C-A288", "C-A289", "C-A290", "C-A294", "C-A299", "C-A3", "C-A300", "C-A302", "C-A303", 
-               "C-A304", "C-A305", "C-A308", "C-A309", "C-A31", "C-A310", "C-A312", "C-A313", "C-A316", "C-A317", 
-               "C-A318", "C-A319", "C-A32", "C-A321", "C-A322", "C-A324", "C-A328", "C-A329", "C-A35", "C-A36", 
-               "C-A37", "C-A38", "C-A39", "C-A40", "C-A41", "C-A44", "C-A46", "C-A47", "C-A49", "C-A51", 
-               "C-A52", "C-A54", "C-A55", "C-A56", "C-A57", "C-A59", "C-A6", "C-A61", "C-A62", "C-A63", 
-               "C-A64", "C-A65", "C-A67", "C-A68", "C-A69", "C-A7", "C-A70", "C-A73", "C-A74", "C-A76", 
-               "C-A77", "C-A78", "C-A79", "C-A8", "C-A80", "C-A81", "C-A83", "C-A84", "C-A85", "C-A86", 
-               "C-A89", "C-A9", "C-A90", "C-A93", "C-A96", "C-A98", "C-A99"]}
-problems['waste']['etc_params'] = {
-    'num_samples': 100,
-    'truncated_lower': 0.0,
-    'truncated_upper': 1.0,
-    'threshold': 0.01,
-    'model_filename': 'rnn-arch-opt-best_waste.hdf5',
-    'dropout': 0.5,
-    'epochs': 1000,
-    'dense_activation': 'sigmoid'}
-problems['waste']['opt_params'] = {
-    'max_hl': 8, #max n of hidden layers
-    'min_nn': 10,
-    'max_nn': 300, #max n of nn per layer
-    'min_lb': 2,
-    'max_lb': 30, #max look back
-    'max_eval': 100,
-    'max_iter': 100,
-    'n_init_samples': 10,
-    'data_loader_class': 'loaders.RubbishDataLoader'}
-
-problems['eunite'] = {}
-problems['eunite']['data_loader_params'] = {
-    'training_filename': '../../data/eunite/eunite.training.csv',
-    'testing_filename': '../../data/eunite/eunite.testing.csv',
-    'x_features': ["X00.30","X01.00","X01.30","X02.00","X02.30","X03.00","X03.30","X04.00",
-                   "X04.30","X05.00","X05.30","X06.00","X06.30","X07.00","X07.30","X08.00",
-                   "X08.30","X09.00","X09.30","X10.00","X10.30","X11.00","X11.30","X12.00",
-                   "X12.30","X13.00","X13.30","X14.00","X14.30","X15.00","X15.30","X16.00",
-                   "X16.30","X17.00","X17.30","X18.00","X18.30","X19.00","X19.30","X20.00",
-                   "X20.30","X21.00","X21.30","X22.00","X22.30","X23.00","X23.30","X24.00",
-                   "MaxLoads","Temperature","Holiday","Weekday"],
-    'y_features': ["MaxLoads"],
-    'validation_ratio' : 0.2,
-    'batch_size': 5,
-    'max_look_back': 30,
-    'scaler_fn': StandardScaler}
-problems['eunite']['etc_params'] = {
-    'num_samples': 100,
-    'truncated_lower': 0.0,
-    'truncated_upper': 100.0,
-    'threshold': 0.01,
-    'model_filename': 'rnn-arch-opt-best_eunite.hdf5',
-    'dropout': 0.5,
-    'epochs': 1000,
-    'dense_activation': 'linear'}
-problems['eunite']['opt_params'] = {
-    'max_hl': 8, #max n of hidden layers
-    'min_nn': 10,
-    'max_nn': 100, #max n of nn per layer
-    'min_lb': 2,
-    'max_lb': 30, #max look back
-    'max_eval': 100,
-    'max_iter': 100,
-    'n_init_samples': 10,
-    'data_loader_class': 'loaders.EuniteDataLoader'}
+decoder = None
 
 
-def decode_solution(x, input_dim, output_dim, **kwargs):
-  raise Exception("Function decode_solution is not defined")
-  # return model, look_back, solution_id
+class SolutionDecoder(object):
 
-def decode_solution_flag(x, input_dim, output_dim, **kwargs):
-  global verbose
-  print(x)
+  def __init__(self,
+               solution_decoder,
+               repair=True,
+               verbose=False):
+    self.solution_decoder = solution_decoder
+    self.repair = repair
+    self.verbose = verbose
+
+  def _repair(self,
+             hidden):
+    repaired = []
+    for h in hidden:
+      if h != 0:
+        repaired.append(h)
+    return repaired
+
+  def _isvalid(self,
+               hidden):
+    if len(hidden) == 0:
+      return False
+    for h in hidden:
+      if h == 0:
+        return False
+    return True 
+
+  def decode_solution(self, x, input_dim, output_dim, **kwargs):
+    print(x)
+    hidden = self.solution_decoder(x)
+    if self.repair:
+      hidden = self._repair(hidden)
+    for h in reversed(hidden):
+      if h == 0:
+        hidden.pop()
+    if not self._isvalid(hidden):
+      return None, None, None
+    architecture = [input_dim] + hidden + [output_dim]
+    print(architecture)
+    model = nn_builder_class.build_model(architecture,
+                                         verbose=self.verbose,
+                                         **kwargs)
+    look_back = x['look_back']
+    solution_id = str(architecture) + '+' + str(look_back)
+    return model, look_back, solution_id
+
+
+def decode_solution_flag(x):
   cells = dict(filter(lambda elem: elem[0].startswith('cells_per_layer_'), x.items()))
   cells = sorted(cells.items())
   layers = dict(filter(lambda elem: elem[0].startswith('layer_'), x.items()))
@@ -206,39 +80,30 @@ def decode_solution_flag(x, input_dim, output_dim, **kwargs):
   for c, l in zip(cells, layers):
     if l[1] == 'Y':
       hidden.append(c[1])
-
-  if len(hidden) == 0:
-    return None, None, None
-  architecture = [input_dim] + hidden + [output_dim]
-  print(architecture)
-  model = nn_builder_class.build_model(architecture,
-                                       verbose=verbose,
-                                       **kwargs)
-  look_back = x['look_back']
-  solution_id = str(architecture) + '+' + str(look_back)
-  return model, look_back, solution_id
+    else:
+      hidden.append(0)
+  return hidden
 
 
-def decode_solution_size(x, input_dim, output_dim, **kwargs):
-  global verbose
-  print(x)
+def decode_solution_size(x):
   cells = dict(filter(lambda elem: elem[0].startswith('cells_per_layer_'), x.items()))
   cells = sorted(cells.items())
   size = x['size']  
   hidden = []
   for c in cells[:size]:
     hidden.append(c[1])
+  for c in cells[size:]:
+    hidden.append(0)
+  return hidden
 
-  if len(hidden) == 0:
-    return None, None, None
-  architecture = [input_dim] + hidden + [output_dim]
-  print(architecture)
-  model = nn_builder_class.build_model(architecture,
-                                       verbose=verbose,
-                                       **kwargs)
-  look_back = x['look_back']
-  solution_id = str(architecture) + '+' + str(look_back)
-  return model, look_back, solution_id
+
+def decode_solution_plain(x):
+  cells = dict(filter(lambda elem: elem[0].startswith('cells_per_layer_'), x.items()))
+  cells = sorted(cells.items())
+  hidden = []
+  for c in cells:
+    hidden.append(c[1])
+  return hidden
 
 
 nn_eval = 1
@@ -250,9 +115,10 @@ def obj_func(x):
   global etc_params
   global random_seed
   global lookup
+  global decoder
   print("### " + str(nn_eval) + " ######################################")
   nn_eval += 1
-  model, look_back, solution_id = decode_solution(x, dataset.input_dim, dataset.output_dim, **etc_params)
+  model, look_back, solution_id = decoder.decode_solution(x, dataset.input_dim, dataset.output_dim, **etc_params)
   if model is None:
     print("{'log_p': -10000, 'warning': 'null architecture'}")
     return -10000
@@ -272,7 +138,8 @@ def obj_func(x):
 
 #Gradien-based NN optimization
 def train_solution(x, dataset, **kwargs):
-  model, look_back, solution_id = decode_solution(x, dataset.input_dim, dataset.output_dim, **kwargs)
+  global decoder
+  model, look_back, solution_id = decoder.decode_solution(x, dataset.input_dim, dataset.output_dim, **kwargs)
   if model is None:
     print("Imposible to train a null model")
     return None
@@ -302,6 +169,7 @@ def train_solution(x, dataset, **kwargs):
 
 
 if __name__ == '__main__':
+  problems = get_problems()
   parser = argparse.ArgumentParser()
   parser.add_argument('--seed',
                       type=int,
@@ -318,7 +186,11 @@ if __name__ == '__main__':
   parser.add_argument('--encoding',
                       type=str,
                       default='flag',
-                      help='Available encodings: flag, size' )
+                      help='Available encodings: flag, size, plain')
+  parser.add_argument('--norepair',
+                      dest='repair',
+                      action='store_false',
+                      help='Available encodings: flag, size, plain')
   flags, unparsed = parser.parse_known_args()
   random_seed = flags.seed
   verbose = flags.verbose
@@ -338,13 +210,14 @@ if __name__ == '__main__':
   search_space = None
   model = None
   print("Encoding: " + flags.encoding)
+  print("Repair: " + str(flags.repair))
   if flags.encoding == 'flag':
     cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
     look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
     layer = NominalSpace(['Y', 'N'], 'layer') * opt_params['max_hl']
     search_space = cells_per_layer * layer * look_back
     #assign the right decode function
-    decode_solution = decode_solution_flag
+    decoder = SolutionDecoder(solution_decoder=decode_solution_flag, repair=flags.repair, verbose=verbose)
     model = RandomForest(levels=search_space.levels)
   elif flags.encoding == 'size':
     cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
@@ -352,10 +225,16 @@ if __name__ == '__main__':
     size = OrdinalSpace([1, opt_params['max_hl']], 'size')
     # size = NominalSpace(list(range(1, opt_params['max_hl']+1)), 'size')
     search_space = cells_per_layer * size * look_back
-    #assign the right decode function
-    decode_solution = decode_solution_size
+    decoder = SolutionDecoder(solution_decoder=decode_solution_size, repair=flags.repair, verbose=verbose)
     model = RandomForest()
     # model = RandomForest(levels=search_space.levels)
+  elif flags.encoding == 'plain':
+    #TODO the lower bound for the number of neurons has to be set
+    cells_per_layer = OrdinalSpace([0, opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
+    look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
+    search_space = cells_per_layer * look_back
+    decoder = SolutionDecoder(solution_decoder=decode_solution_plain, repair=flags.repair, verbose=verbose)
+    model = RandomForest()
   else:
     raise Exception("Invalid encoding")
   
