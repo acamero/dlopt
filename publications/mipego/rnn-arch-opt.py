@@ -17,6 +17,8 @@ from dlopt import util as ut
 from problems import get_problems
 
 
+DEFAULT_FITNESS = -10000
+
 #TODO: move the params to a configutarion file
 data_loader_params = {} # passed to the data loader
 etc_params = {} # sampler and training params
@@ -120,8 +122,8 @@ def obj_func(x):
   nn_eval += 1
   model, look_back, solution_id = decoder.decode_solution(x, dataset.input_dim, dataset.output_dim, **etc_params)
   if model is None:
-    print("{'log_p': -10000, 'warning': 'null architecture'}")
-    return -10000
+    print("{'log_p': "+ str(DEFAULT_FITNESS) + ", 'warning': 'null architecture'}")
+    return DEFAULT_FITNESS
   if solution_id in lookup:    
     print("# Already computed solution")
     return lookup[solution_id]
@@ -191,6 +193,10 @@ if __name__ == '__main__':
                       dest='repair',
                       action='store_false',
                       help='Available encodings: flag, size, plain')
+  parser.add_argument('--warmdata',
+                      type=str,
+                      default=None,
+                      help='Warm start data filename')
   flags, unparsed = parser.parse_known_args()
   random_seed = flags.seed
   verbose = flags.verbose
@@ -237,6 +243,8 @@ if __name__ == '__main__':
     model = RandomForest()
   else:
     raise Exception("Invalid encoding")
+
+  print("Warm start data: " + str(flags.warmdata))
   
   opt = mipego(search_space,
                obj_func,
@@ -252,7 +260,8 @@ if __name__ == '__main__':
                verbose=True,
                log_file=etc_params['model_filename'].replace('.hdf5',
                                                              '_' + str(random_seed) + '.log'),
-               random_seed=random_seed)
+               random_seed=random_seed,
+               warm_data_file=flags.warmdata)
 
   print("### Begin Optimization ######################################")
   incumbent, stop_dict = opt.run()

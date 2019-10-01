@@ -1,4 +1,4 @@
-output.json
+*.json
 __pycache__
 *.pyc
 *.hdf5
