@@ -9,6 +9,7 @@ from itertools import product
 from problems import get_problems
 
 DEFAULT_FITNESS = -10000
+SEP = ','
 
 if __name__ == '__main__':
   problems = get_problems()
@@ -21,6 +22,10 @@ if __name__ == '__main__':
                       type=str,
                       default='test',
                       help='Available problems: ' + str(problems.keys()) )
+  parser.add_argument('--format',
+                      type=str,
+                      default='csv',
+                      help='Format of the file: csv, json' )
   flags, unparsed = parser.parse_known_args()
 
   print("Problem: " + flags.problem)
@@ -57,13 +62,14 @@ if __name__ == '__main__':
     lb_product = [opt_params['min_lb'], opt_params['max_lb']]
     invalid_space = list(product(cells_product, lb_product, layer_product))
     for inv in invalid_space:
-      solution = {}
-      solution['fitness'] = DEFAULT_FITNESS
+      solution = {}      
       for ix, cells in enumerate(inv[0]):
         solution['cells_per_layer_' + str(ix)] = cells      
       for ix, layer in enumerate(inv[2]):
         solution['layer_' + str(ix)] = layer
       solution['look_back'] = inv[1]
+      solution['n_eval'] = 1
+      solution['fitness'] = DEFAULT_FITNESS
       invalid_solutions.append(solution)
   elif flags.encoding == 'size':
     #cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
@@ -80,7 +86,25 @@ if __name__ == '__main__':
   else:
     raise Exception("Invalid encoding")
 
-  filename = 'data_' + flags.problem + '_'+ flags.encoding + '.json'
-  print(str(len(invalid_solutions)) + " invalid solutions added to " + filename)
+
+  filename = 'data_' + flags.problem + '_'+ flags.encoding 
+  if flags.format == 'json':
+    filename += '.json'
+  elif flags.format == 'csv':
+    filename += '.csv'
+  
+  if len(invalid_solutions) == 0:
+    print("No invalid solutions")
+    exit()
+
   with open(filename, 'w') as outfile:
-    json.dump(invalid_solutions, outfile)
+    if flags.format == 'json':
+      json.dump(invalid_solutions, outfile)
+    elif flags.format == 'csv':
+      outfile.write(SEP.join([str(x) for x in invalid_solutions[0].keys()]))
+      for solution in invalid_solutions:
+        outfile.write("\n")
+        outfile.write(SEP.join([str(x) for x in invalid_solutions[0].values()]))
+    else:
+      raise Exception("Invalid output format")
+    print(str(len(invalid_solutions)) + " invalid solutions added to " + filename)

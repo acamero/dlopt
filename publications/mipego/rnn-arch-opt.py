@@ -5,9 +5,12 @@ import argparse
 import sys
 
 #import our package, the surrogate model and the search space classes
-from mipego import mipego
-from mipego.Surrogate import RandomForest
-from mipego.SearchSpace import ContinuousSpace, NominalSpace, OrdinalSpace
+from BayesOpt import BO
+#from mipego import mipego
+from BayesOpt.Surrogate import RandomForest
+#from mipego.Surrogate import RandomForest
+from BayesOpt.SearchSpace import ContinuousSpace, NominalSpace, OrdinalSpace, ProductSpace
+#from mipego.SearchSpace import ContinuousSpace, NominalSpace, OrdinalSpace
 
 from dlopt.nn import RNNBuilder as nn_builder_class
 from dlopt.nn import TrainGradientBased as nn_trainer_class
@@ -221,7 +224,8 @@ if __name__ == '__main__':
     cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
     look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
     layer = NominalSpace(['Y', 'N'], 'layer') * opt_params['max_hl']
-    search_space = cells_per_layer * layer * look_back
+    search_space = ProductSpace(ProductSpace(cells_per_layer, layer), look_back)
+    # mipego -> search_space = cells_per_layer * layer * look_back
     #assign the right decode function
     decoder = SolutionDecoder(solution_decoder=decode_solution_flag, repair=flags.repair, verbose=verbose)
     model = RandomForest(levels=search_space.levels)
@@ -230,7 +234,8 @@ if __name__ == '__main__':
     look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
     size = OrdinalSpace([1, opt_params['max_hl']], 'size')
     # size = NominalSpace(list(range(1, opt_params['max_hl']+1)), 'size')
-    search_space = cells_per_layer * size * look_back
+    search_space = ProductSpace(ProductSpace(cells_per_layer, size), look_back)
+    # mipego -> search_space = cells_per_layer * size * look_back
     decoder = SolutionDecoder(solution_decoder=decode_solution_size, repair=flags.repair, verbose=verbose)
     model = RandomForest()
     # model = RandomForest(levels=search_space.levels)
@@ -238,7 +243,8 @@ if __name__ == '__main__':
     #TODO the lower bound for the number of neurons has to be set
     cells_per_layer = OrdinalSpace([0, opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
     look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
-    search_space = cells_per_layer * look_back
+    search_space = ProductSpace(cells_per_layer, look_back)
+    # mipego -> search_space = cells_per_layer * look_back
     decoder = SolutionDecoder(solution_decoder=decode_solution_plain, repair=flags.repair, verbose=verbose)
     model = RandomForest()
   else:
@@ -246,7 +252,8 @@ if __name__ == '__main__':
 
   print("Warm start data: " + str(flags.warmdata))
   
-  opt = mipego(search_space,
+  #opt = mipego(search_space,
+  opt = BO(search_space,
                obj_func,
                model, 
                minimize=False,
@@ -257,18 +264,20 @@ if __name__ == '__main__':
                n_point=1,         #We evaluate every iteration 1 time
                n_job=1,           #  with 1 process (job).
                optimizer='MIES',  #We use the MIES internal optimizer.
+               eval_type='dict',  #To get the solution, as well as the var_name
                verbose=True,
                log_file=etc_params['model_filename'].replace('.hdf5',
                                                              '_' + str(random_seed) + '.log'),
                random_seed=random_seed,
-               warm_data_file=flags.warmdata)
+               warm_data=flags.warmdata)
+               # mipego -> warm_data_file=flags.warmdata)
 
   print("### Begin Optimization ######################################")
-  incumbent, stop_dict = opt.run()
+  incumbent, fitness, stop_dict = opt.run()
   print(stop_dict)
   x = incumbent.to_dict()
   # x = {'cells_per_layer_0': 12, 'cells_per_layer_1': 20, 'cells_per_layer_2': 76, 'layer_0': 'N', 'layer_1': 'N', 'layer_2': 'Y', 'look_back': 5, 'garbage': 0.11725690809327188}
-  print("Best solution: " + str(x))
+  print("Best solution: " + str(x) + ", Fitness: " + str(fitness))
   print("### End Optimization ######################################")
 
   print("### Start Training ######################################")
