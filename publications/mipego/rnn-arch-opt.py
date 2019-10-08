@@ -20,62 +20,6 @@ from dlopt import util as ut
 from problems import get_problems
 
 
-DEFAULT_FITNESS = -10000
-
-#TODO: move the params to a configutarion file
-data_loader_params = {} # passed to the data loader
-etc_params = {} # sampler and training params
-opt_params = {} # problem and mip-ego params
-decoder = None
-
-
-class SolutionDecoder(object):
-
-  def __init__(self,
-               solution_decoder,
-               repair=True,
-               verbose=False):
-    self.solution_decoder = solution_decoder
-    self.repair = repair
-    self.verbose = verbose
-
-  def _repair(self,
-             hidden):
-    repaired = []
-    for h in hidden:
-      if h != 0:
-        repaired.append(h)
-    return repaired
-
-  def _isvalid(self,
-               hidden):
-    if len(hidden) == 0:
-      return False
-    for h in hidden:
-      if h == 0:
-        return False
-    return True 
-
-  def decode_solution(self, x, input_dim, output_dim, **kwargs):
-    print(x)
-    hidden = self.solution_decoder(x)
-    if self.repair:
-      hidden = self._repair(hidden)
-    for h in reversed(hidden):
-      if h == 0:
-        hidden.pop()
-    if not self._isvalid(hidden):
-      return None, None, None
-    architecture = [input_dim] + hidden + [output_dim]
-    print(architecture)
-    model = nn_builder_class.build_model(architecture,
-                                         verbose=self.verbose,
-                                         **kwargs)
-    look_back = x['look_back']
-    solution_id = str(architecture) + '+' + str(look_back)
-    return model, look_back, solution_id
-
-
 def decode_solution_flag(x):
   cells = dict(filter(lambda elem: elem[0].startswith('cells_per_layer_'), x.items()))
   cells = sorted(cells.items())
@@ -111,65 +55,113 @@ def decode_solution_plain(x):
   return hidden
 
 
-nn_eval = 1
-lookup = {}
-# The "black-box" objective function
-def obj_func(x):
-  global nn_eval
-  global dataset
-  global etc_params
-  global random_seed
-  global lookup
-  global decoder
-  print("### " + str(nn_eval) + " ######################################")
-  nn_eval += 1
-  model, look_back, solution_id = decoder.decode_solution(x, dataset.input_dim, dataset.output_dim, **etc_params)
-  if model is None:
-    print("{'log_p': "+ str(DEFAULT_FITNESS) + ", 'warning': 'null architecture'}")
-    return DEFAULT_FITNESS
-  if solution_id in lookup:    
-    print("# Already computed solution")
-    return lookup[solution_id]
-  sampler = samp.MAERandomSampling(random_seed)
-  #TODO copy the dataset before changing the look_back param   
-  dataset.testing_data.look_back = look_back
-  metrics = sampler.fit(model=model,
-                        data=dataset.testing_data,
-                        **etc_params)
-  print(metrics)
-  lookup[solution_id] = metrics['log_p']
-  return metrics['log_p']
+class MRSProblem(object):
 
+  DEFAULT_FITNESS = -10000
 
-#Gradien-based NN optimization
-def train_solution(x, dataset, **kwargs):
-  global decoder
-  model, look_back, solution_id = decoder.decode_solution(x, dataset.input_dim, dataset.output_dim, **kwargs)
-  if model is None:
-    print("Imposible to train a null model")
-    return None
-  start = time.time()
-  trainer = nn_trainer_class(verbose=verbose,
-                             **kwargs)
-  if 'dropout' in kwargs:
-    model = nn_builder_class.add_dropout(model,
-                                         kwargs['dropout'])
-  nn_builder_class.init_weights(model,
-                                ut.random_uniform,
-                                low=-0.5,
-                                high=0.5)
-  trainer.load_from_model(model)
-  dataset.training_data.look_back = look_back
-  dataset.validation_data.look_back = look_back
-  dataset.testing_data.look_back = look_back
-  trainer.train(dataset.training_data,
-                validation_dataset=dataset.validation_data,                  
-                **kwargs)
-  metrics, pred = trainer.evaluate(dataset.testing_data,
-                                   **kwargs)
-  evaluation_time = time.time() - start
-  metrics['evaluation_time'] = evaluation_time
-  return model, metrics, pred
+  def __init__(self,
+               solution_decoder,
+               dataset,
+               repair=True,
+               random_seed=0,
+               verbose=False,
+               **etc_params):
+    self.solution_decoder = solution_decoder
+    self.dataset = dataset
+    self.etc_params = etc_params
+    self.repair = repair
+    self.verbose = verbose
+    self.random_seed = random_seed
+    self.nn_eval = 0
+    self.lookup = {}
+
+  def _repair(self,
+             hidden):
+    repaired = []
+    for h in hidden:
+      if h != 0:
+        repaired.append(h)
+    return repaired
+
+  def _isvalid(self,
+               hidden):
+    if len(hidden) == 0:
+      return False
+    for h in hidden:
+      if h == 0:
+        return False
+    return True 
+
+  def _decode_solution(self, x):
+    print(x)
+    hidden = self.solution_decoder(x)
+    if self.repair:
+      hidden = self._repair(hidden)
+    for h in reversed(hidden):
+      if h == 0:
+        hidden.pop()
+    if not self._isvalid(hidden):
+      return None, None, None
+    architecture = [self.dataset.input_dim] + hidden + [self.dataset.output_dim]
+    print(architecture)
+    model = nn_builder_class.build_model(architecture,
+                                         verbose=self.verbose,
+                                         **self.etc_params)
+    look_back = x['look_back']
+    solution_id = str(architecture) + '+' + str(look_back)
+    return model, look_back, solution_id
+
+  def mrs_fit(self, x):
+    self.nn_eval += 1
+    print("### " + str(self.nn_eval) + " ######################################")
+    model, look_back, solution_id = self._decode_solution(x)
+    if model is None:
+      print("{'log_p': "+ str(self.DEFAULT_FITNESS) + ", 'warning': 'null architecture'}")
+      return self.DEFAULT_FITNESS
+    if solution_id in self.lookup:    
+      print("# Already computed solution")
+      return self.lookup[solution_id]
+    sampler = samp.MAERandomSampling(self.random_seed)
+    #TODO copy the dataset before changing the look_back param   
+    self.dataset.testing_data.look_back = look_back
+    metrics = sampler.fit(model=model,
+                          data=self.dataset.testing_data,
+                          **self.etc_params)
+    print(metrics)
+    self.lookup[solution_id] = metrics['log_p']
+    return metrics['log_p']
+
+  def train_solution(self, x):
+    model, look_back, solution_id = self._decode_solution(x)
+    if model is None:
+      print("Imposible to train a null model")
+      return None
+    start = time.time()
+    trainer = nn_trainer_class(verbose=verbose,
+                               **self.etc_params)
+    if 'dropout' in self.etc_params:
+      model = nn_builder_class.add_dropout(model,
+                                           self.etc_params['dropout'])
+    nn_builder_class.init_weights(model,
+                                  ut.random_uniform,
+                                  low=-0.5,
+                                  high=0.5)
+    trainer.load_from_model(model)
+    self.dataset.training_data.look_back = look_back
+    self.dataset.validation_data.look_back = look_back
+    self.dataset.testing_data.look_back = look_back
+    trainer.train(self.dataset.training_data,
+                validation_dataset=self.dataset.validation_data,                  
+                **self.etc_params)
+    metrics, pred = trainer.evaluate(self.dataset.testing_data,
+                                     **self.etc_params)
+    evaluation_time = time.time() - start
+    metrics['evaluation_time'] = evaluation_time
+    return model, metrics, pred
+
+    
+
+    
 
 
 
@@ -182,7 +174,7 @@ if __name__ == '__main__':
                       help='Random seed (default=31081984).')
   parser.add_argument('--verbose',
                       type=int,
-                      default=0,
+                      default=1,
                       help='Verbose level. 0=silent, 1=verbose, 2=debug.')
   parser.add_argument('--problem',
                       type=str,
@@ -201,12 +193,15 @@ if __name__ == '__main__':
                       default=None,
                       help='Warm start data filename')
   flags, unparsed = parser.parse_known_args()
-  random_seed = flags.seed
   verbose = flags.verbose
   print("Problem: " + flags.problem)
   data_loader_params = problems[flags.problem]['data_loader_params']
   etc_params = problems[flags.problem]['etc_params']
   opt_params = problems[flags.problem]['opt_params']
+  etc_params['model_filename'] = etc_params['model_filename'].replace('.hdf5',
+                                                                      '_' + str(flags.seed) + '.hdf5')
+  etc_params['log_filename'] = etc_params['log_filename'].replace('.log',
+                                                                  '_' + str(flags.seed) + '.log')
   #Load the data
   #TODO when using DLOPT config this is not necessary
   data_loader = ut.load_class_from_str(opt_params['data_loader_class'])()
@@ -227,7 +222,7 @@ if __name__ == '__main__':
     search_space = ProductSpace(ProductSpace(cells_per_layer, layer), look_back)
     # mipego -> search_space = cells_per_layer * layer * look_back
     #assign the right decode function
-    decoder = SolutionDecoder(solution_decoder=decode_solution_flag, repair=flags.repair, verbose=verbose)
+    solution_decoder=decode_solution_flag
     model = RandomForest(levels=search_space.levels)
   elif flags.encoding == 'size':
     cells_per_layer = OrdinalSpace([opt_params['min_nn'], opt_params['max_nn']], 'cells_per_layer') * opt_params['max_hl']
@@ -236,7 +231,7 @@ if __name__ == '__main__':
     # size = NominalSpace(list(range(1, opt_params['max_hl']+1)), 'size')
     search_space = ProductSpace(ProductSpace(cells_per_layer, size), look_back)
     # mipego -> search_space = cells_per_layer * size * look_back
-    decoder = SolutionDecoder(solution_decoder=decode_solution_size, repair=flags.repair, verbose=verbose)
+    solution_decoder=decode_solution_size
     model = RandomForest()
     # model = RandomForest(levels=search_space.levels)
   elif flags.encoding == 'plain':
@@ -245,16 +240,24 @@ if __name__ == '__main__':
     look_back = OrdinalSpace([opt_params['min_lb'], opt_params['max_lb']], 'look_back')
     search_space = ProductSpace(cells_per_layer, look_back)
     # mipego -> search_space = cells_per_layer * look_back
-    decoder = SolutionDecoder(solution_decoder=decode_solution_plain, repair=flags.repair, verbose=verbose)
+    solution_decoder=decode_solution_plain
     model = RandomForest()
   else:
     raise Exception("Invalid encoding")
 
   print("Warm start data: " + str(flags.warmdata))
+
+  mrs_problem = MRSProblem(solution_decoder,
+                           dataset,
+                           repair=flags.repair,
+                           random_seed=flags.seed,
+                           verbose=flags.verbose,
+                           **etc_params)
   
+  #TODO pass mrs_problem.mrs_fit as the obj_func
   #opt = mipego(search_space,
   opt = BO(search_space,
-               obj_func,
+               mrs_problem.mrs_fit,
                model, 
                minimize=False,
                max_eval=opt_params['max_eval'],
@@ -265,10 +268,9 @@ if __name__ == '__main__':
                n_job=1,           #  with 1 process (job).
                optimizer='MIES',  #We use the MIES internal optimizer.
                eval_type='dict',  #To get the solution, as well as the var_name
-               verbose=True,
-               log_file=etc_params['model_filename'].replace('.hdf5',
-                                                             '_' + str(random_seed) + '.log'),
-               random_seed=random_seed,
+               verbose=flags.verbose,
+               log_file=etc_params['log_filename'],
+               random_seed=flags.seed,
                warm_data=flags.warmdata)
                # mipego -> warm_data_file=flags.warmdata)
 
@@ -276,18 +278,15 @@ if __name__ == '__main__':
   incumbent, fitness, stop_dict = opt.run()
   print(stop_dict)
   x = incumbent.to_dict()
-  # x = {'cells_per_layer_0': 12, 'cells_per_layer_1': 20, 'cells_per_layer_2': 76, 'layer_0': 'N', 'layer_1': 'N', 'layer_2': 'Y', 'look_back': 5, 'garbage': 0.11725690809327188}
   print("Best solution: " + str(x) + ", Fitness: " + str(fitness))
   print("### End Optimization ######################################")
-
-  print("### Start Training ######################################")
-  etc_params['model_filename'] = etc_params['model_filename'].replace('.hdf5',
-                                                                      '_' + str(random_seed) + '.hdf5')
-  model, metrics, pred = train_solution(x, dataset, **etc_params)
+  print("### Start Training ######################################")    
+  model, metrics, pred = mrs_problem.train_solution(x)
+  print("### End Training ######################################")
+  print(model.summary())
   print(metrics)
   print(pred)
   if hasattr(data_loader, 'inverse_transform'):
     pred_real = data_loader.inverse_transform(dataset.testing_data, pred)
     print("Real (inversed) predicted values")
     print(pred_real)
-  print("### End Training ######################################")

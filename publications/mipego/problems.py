@@ -18,6 +18,7 @@ problems['test']['etc_params'] = {
     'truncated_upper': 2.0,
     'threshold': 0.01,
     'model_filename': 'rnn-arch-opt-best_test.hdf5',
+    'log_filename': 'rnn-arch-opt-best_test.log',
     'dropout': 0.5,
     'epochs': 5,
     'dense_activation': 'tanh'}
@@ -49,6 +50,7 @@ problems['sin']['etc_params'] = {
     'truncated_upper': 2.0,
     'threshold': 0.01,
     'model_filename': 'rnn-arch-opt-best_sin.hdf5',
+    'log_filename': 'rnn-arch-opt-best_sin.log',
     'dropout': 0.5,
     'epochs': 100,
     'dense_activation': 'tanh'}
@@ -119,6 +121,7 @@ problems['waste']['etc_params'] = {
     'truncated_upper': 1.0,
     'threshold': 0.01,
     'model_filename': 'rnn-arch-opt-best_waste.hdf5',
+    'log_filename': 'rnn-arch-opt-best_waste.log',
     'dropout': 0.5,
     'epochs': 1000,
     'dense_activation': 'sigmoid'}
@@ -155,6 +158,7 @@ problems['eunite']['etc_params'] = {
     'truncated_upper': 100.0,
     'threshold': 0.01,
     'model_filename': 'rnn-arch-opt-best_eunite.hdf5',
+    'log_filename': 'rnn-arch-opt-best_eunite.log',
     'dropout': 0.5,
     'epochs': 1000,
     'dense_activation': 'linear'}
