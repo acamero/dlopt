@@ -33,7 +33,7 @@
 "epochs": 10,
 "batch_size" : 512,
 
-"data_loader_class": "publications.low-cost.mae.energy.AppliancesEnergyDataLoader",
+"data_loader_class": "loaders.AppliancesEnergyDataLoader",
 "data_loader_params": {
     "filename": "../../../data/app-energy/energydata_complete.csv",
     "batch_size" : 512,

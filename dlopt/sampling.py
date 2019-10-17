@@ -1,11 +1,15 @@
 import tensorflow as tf
 import numpy as np
 import random as rd
+import gc
+import copy
 from . import util as ut
 from scipy.stats import truncnorm
 from abc import ABC, abstractmethod
 import time
 from sklearn.metrics import log_loss
+from keras.models import model_from_json
+from memory_profiler import profile
 
 
 class RandomSampling(object):
@@ -15,8 +19,9 @@ class RandomSampling(object):
         if seed is not None:
             np.random.seed(seed)
             rd.seed(seed)
-            tf.set_random_seed(seed)
+            tf.random.set_seed(seed)
 
+    @profile
     def sample(self,
                model,
                init_function,
@@ -26,11 +31,13 @@ class RandomSampling(object):
                **kwargs):
         sampled_metrics = list()
         model.compile(optimizer='sgd', loss=metric_function)
+        data._precompute()
         for i in range(num_samples):
             weights = self._generate_weights(model, init_function, **kwargs)
             model.set_weights(weights)
             metric = model.evaluate_generator(data)
-            sampled_metrics.append(metric)
+            sampled_metrics.append(copy.copy(metric))
+        gc.collect()
         return sampled_metrics
 
     def _generate_weights(self,

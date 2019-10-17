@@ -3,6 +3,8 @@ import numpy as np
 import time
 import argparse
 import sys
+import copy
+import gc
 
 #import our package, the surrogate model and the search space classes
 from BayesOpt import BO
@@ -18,6 +20,8 @@ from dlopt import sampling as samp
 from dlopt import util as ut
 
 from problems import get_problems
+
+from memory_profiler import profile
 
 
 def decode_solution_flag(x):
@@ -90,9 +94,30 @@ class MRSProblem(object):
     for h in hidden:
       if h == 0:
         return False
-    return True 
+    return True
 
-  def _decode_solution(self, x):
+  def penalty(self,
+              x):
+    penalty = 0
+    hidden = self.solution_decoder(x)
+    architecture = [self.dataset.input_dim]
+    last_h = -1
+    for ix, h in enumerate(hidden):
+      if h > 0:
+        penalty += ix - last_h - 1
+        last_h = last_h + 1
+        architecture += [h]
+
+    architecture += [self.dataset.output_dim]
+    look_back = x['look_back']
+    solution_id = str(architecture) + '+' + str(look_back)    
+    if (solution_id in self.lookup 
+        or last_h == -1):
+      penalty = (len(hidden) * (len(hidden) + 1)) / 2 
+    return penalty 
+
+  def _decode_solution(self,
+                       x):
     print(x)
     hidden = self.solution_decoder(x)
     if self.repair:
@@ -111,9 +136,13 @@ class MRSProblem(object):
     solution_id = str(architecture) + '+' + str(look_back)
     return model, look_back, solution_id
 
-  def mrs_fit(self, x):
+  @profile
+  def mrs_fit(self,
+              x):
     self.nn_eval += 1
     print("### " + str(self.nn_eval) + " ######################################")
+    # K.clear_session()
+    # gc.collect()
     model, look_back, solution_id = self._decode_solution(x)
     if model is None:
       print("{'log_p': "+ str(self.DEFAULT_FITNESS) + ", 'warning': 'null architecture'}")
@@ -128,10 +157,11 @@ class MRSProblem(object):
                           data=self.dataset.testing_data,
                           **self.etc_params)
     print(metrics)
-    self.lookup[solution_id] = metrics['log_p']
-    return metrics['log_p']
+    self.lookup[solution_id] = copy.copy(metrics['log_p'])
+    return self.lookup[solution_id]
 
-  def train_solution(self, x):
+  def train_solution(self,
+                     x):
     model, look_back, solution_id = self._decode_solution(x)
     if model is None:
       print("Imposible to train a null model")
@@ -192,6 +222,10 @@ if __name__ == '__main__':
                       type=str,
                       default=None,
                       help='Warm start data filename')
+  parser.add_argument('--constraint',
+                      dest='constraint',
+                      action='store_true',
+                      help='Add constraints to the EI')
   flags, unparsed = parser.parse_known_args()
   verbose = flags.verbose
   print("Problem: " + flags.problem)
@@ -202,6 +236,9 @@ if __name__ == '__main__':
                                                                       '_' + str(flags.seed) + '.hdf5')
   etc_params['log_filename'] = etc_params['log_filename'].replace('.log',
                                                                   '_' + str(flags.seed) + '.log')
+  if 'data_filename' not in etc_params:
+    etc_params['data_filename'] = etc_params['log_filename'].replace('.log',
+                                                                     '.csv')
   #Load the data
   #TODO when using DLOPT config this is not necessary
   data_loader = ut.load_class_from_str(opt_params['data_loader_class'])()
@@ -254,30 +291,34 @@ if __name__ == '__main__':
                            verbose=flags.verbose,
                            **etc_params)
   
+  print("Constraint: " + str(flags.constraint))
+  constraint_eq_func = mrs_problem.penalty if flags.constraint else None
   #TODO pass mrs_problem.mrs_fit as the obj_func
-  #opt = mipego(search_space,
-  opt = BO(search_space,
-               mrs_problem.mrs_fit,
-               model, 
-               minimize=False,
-               max_eval=opt_params['max_eval'],
-               max_iter=opt_params['max_iter'],
-               infill='EI',       #Expected improvement as criteria
-               n_init_sample=opt_params['n_init_samples'],  #We start with 10 initial samples
-               n_point=1,         #We evaluate every iteration 1 time
-               n_job=1,           #  with 1 process (job).
-               optimizer='MIES',  #We use the MIES internal optimizer.
-               eval_type='dict',  #To get the solution, as well as the var_name
-               verbose=flags.verbose,
-               log_file=etc_params['log_filename'],
-               random_seed=flags.seed,
-               warm_data=flags.warmdata)
-               # mipego -> warm_data_file=flags.warmdata)
+  #opt = mipego(
+  opt = BO(
+      search_space,
+      mrs_problem.mrs_fit,
+      model, 
+      minimize=False,
+      eq_func=constraint_eq_func,
+      max_eval=opt_params['max_eval'],
+      max_iter=opt_params['max_iter'],
+      infill='EI',       #Expected improvement as criteria
+      n_init_sample=opt_params['n_init_samples'],  #We start with 10 initial samples
+      n_point=1,         #We evaluate every iteration 1 time
+      n_job=1,           #  with 1 process (job).
+      optimizer='MIES',  #We use the MIES internal optimizer.
+      eval_type='dict',  #To get the solution, as well as the var_name
+      verbose=flags.verbose,
+      log_file=etc_params['log_filename'],
+      random_seed=flags.seed,
+      data_file=etc_params['data_filename'],
+      warm_data=flags.warmdata)  # mipego -> warm_data_file=flags.warmdata)
 
   print("### Begin Optimization ######################################")
-  incumbent, fitness, stop_dict = opt.run()
+  incumbent_list, fitness, stop_dict = opt.run()
   print(stop_dict)
-  x = incumbent.to_dict()
+  x = opt.xopt.to_dict()
   print("Best solution: " + str(x) + ", Fitness: " + str(fitness))
   print("### End Optimization ######################################")
   print("### Start Training ######################################")    

@@ -5,6 +5,7 @@ import pandas as pd
 import datetime
 import time
 import math
+import gc
 from . import util as ut
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.embeddings import Embedding
@@ -72,6 +73,11 @@ class RNNBuilder(NNBuilder):
         input dim <- layers[0]
         output dim <- layers[-1]
         """
+        K.clear_session()
+        tf.keras.backend.clear_session()
+        gc.collect()
+        if verbose > 1:
+            print('Session cleared (RNNBuilder class)')
         if embedding and len(layers) <= 3:
             raise Exception("Provide more than 3 layers when using embedding")
         model = Sequential()
@@ -151,7 +157,8 @@ class TrainGradientBased(TrainNN):
     """
     def __init__(self,
                  model_filename="trained-model.hdf5",
-                 optimizer='Adam(lr=5e-5)',
+                 optimizer='Adam',
+                 learning_rate=5e-5,
                  monitor='val_loss',
                  min_delta=1e-5,
                  patience=50,
@@ -163,8 +170,8 @@ class TrainGradientBased(TrainNN):
         self.checkpointer = ModelCheckpoint(filepath=model_filename,
                                             verbose=verbose,
                                             save_best_only=True)
-        if optimizer == 'Adam(lr=5e-5)':
-            self.optimizer = Adam(lr=5e-5)
+        if optimizer == 'Adam':
+            self.optimizer = Adam(lr=learning_rate)
         else:
             self.optimizer = optimizer
         self.early_stopping = EarlyStopping(monitor=monitor,
@@ -236,6 +243,7 @@ class TimeSeriesDataset(Sequence):
         # it is updated
         self._bkp_look_back = look_back
         self.batch_size = batch_size
+        self._bkp_batch_size = batch_size
         self._precomputed = None
         if precompute:
             self._precompute()
@@ -290,13 +298,18 @@ class TimeSeriesDataset(Sequence):
         pass
 
     def _precompute(self):
-        if (self._precomputed is None or 
-            (self._precomputed and self.look_back != self._bkp_look_back)):
-           # Get all the batches and store them in this object
-           self._pre_computed_batches = []
-           for i in range(self.__len__()):
-               self._pre_computed_batches.append(self._get_batch_item(i))
-           self._bkp_look_back = self.look_back
+        if (self._precomputed is None
+                or (self._precomputed and self.look_back != self._bkp_look_back)
+                or (self._precomputed and self.batch_size != self._bkp_batch_size)):
+            # Get all the batches and store them in this object
+            if hasattr(self, '_pre_computed_batches'):
+                del self._pre_computed_batches[:]
+                gc.collect()
+            self._pre_computed_batches = []
+            for i in range(self.__len__()):
+                self._pre_computed_batches.append(self._get_batch_item(i))
+            self._bkp_look_back = self.look_back
+            self._bkp_batch_size = self.batch_size
         self._precomputed = True
 
 
