@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 import time
 from sklearn.metrics import log_loss
 from keras.models import model_from_json
-from memory_profiler import profile
 
 
 class RandomSampling(object):
@@ -21,7 +20,6 @@ class RandomSampling(object):
             rd.seed(seed)
             tf.random.set_seed(seed)
 
-    @profile
     def sample(self,
                model,
                init_function,
