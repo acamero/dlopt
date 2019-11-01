@@ -128,7 +128,7 @@ class EuniteDataLoader(ut.DataLoader):
               'batch_size' : None,
               'validation_ratio' : None,
               'max_look_back': None,
-              'scaler_fn': None}
+              'scaler_class': None}
 
     scaler = None
 
@@ -149,13 +149,15 @@ class EuniteDataLoader(ut.DataLoader):
             raise Exception("A 'validation_ratio' must be provided")
         if self.params['max_look_back'] is None:
             raise Exception("A 'max_look_back' must be provided")
-        if self.params['scaler_fn'] is None:
-            raise Exception("A 'scaler function' must be provided")
+        if self.params['scaler_class'] is None:
+            raise Exception("A 'scaler class' must be provided")
         df_tr = pd.read_csv(self.params['training_filename'])
         df_ts = pd.read_csv(self.params['testing_filename'])
         df = pd.concat([df_tr, df_ts])
         df = df[list(set(self.params['x_features'] + self.params['y_features']))]
-        self.scaler = self.params['scaler_fn']()
+        scaler_class = ut.load_class_from_str(self.params['scaler_class'])
+        self.scaler = scaler_class()
+        # self.scaler = self.params['scaler_func']()
         df = pd.DataFrame(self.scaler.fit_transform(df),
                           columns=df.columns)
         validation_split = int((1 - self.params['validation_ratio']) * df_tr.shape[0])
@@ -185,7 +187,7 @@ class EuniteDataLoader(ut.DataLoader):
         df_pred = None
         if isinstance(pred, np.ndarray):
             df_pred = pd.DataFrame(pred, columns=dataset.y_features)
-        elif isinstance(pred, np.ndarray):
+        elif isinstance(pred, pd.DataFrame):
             df_pred = pred
         else:
             raise Exception("Please provide a valid 'pred' (numpy ndarray or pandas DF)")

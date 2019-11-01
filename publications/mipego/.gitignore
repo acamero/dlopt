@@ -6,3 +6,6 @@ __pycache__
 *.log
 *.csv
 config/
+manual/
+!train-random.json
+!train-bp.json

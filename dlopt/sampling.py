@@ -14,7 +14,7 @@ from keras.models import model_from_json
 class RandomSampling(object):
     """ Perform a random sampling using a given metric"""
     def __init__(self,
-                 seed=None):
+                 seed=None):        
         if seed is not None:
             np.random.seed(seed)
             rd.seed(seed)
@@ -26,17 +26,29 @@ class RandomSampling(object):
                num_samples,
                data,
                metric_function,
+               save_best=False,
+               minimize=True,
                **kwargs):
+        best_weights = None
+        best_metric_val = None
         sampled_metrics = list()
-        model.compile(optimizer='sgd', loss=metric_function)
+        model.compile(optimizer='sgd', loss=metric_function, metrics=[metric_function])
         data._precompute()
         for i in range(num_samples):
             weights = self._generate_weights(model, init_function, **kwargs)
             model.set_weights(weights)
-            metric = model.evaluate_generator(data)
+            metric = model.evaluate_generator(data)[1]
             sampled_metrics.append(copy.copy(metric))
+            if save_best:
+                if (best_metric_val is None
+                        or ((minimize and metric < best_metric_val)
+                             or (not minimize and metric > best_metric_val))):
+                    best_metric_val = metric
+                    del best_weights
+                    gc.collect()
+                    best_weights = weights
         gc.collect()
-        return sampled_metrics
+        return sampled_metrics, best_weights
 
     def _generate_weights(self,
                           model,
@@ -135,12 +147,13 @@ class MAERandomSampling(RandomSamplingFit):
             threshold=0.01,
             **kwargs):
         start = time.time()
-        samples = self.sampler.sample(model,
-                                      ut.random_normal,
-                                      num_samples,
-                                      data,
-                                      'mae',
-                                      **kwargs)
+        samples, _ = self.sampler.sample(
+            model,
+            ut.random_normal,
+            num_samples,
+            data,
+            'mae',
+            **kwargs)
         """
         The standard form of this distribution is a standard normal truncated
         to the range [a, b] — notice that a and b are defined over the domain

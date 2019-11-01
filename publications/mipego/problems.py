@@ -1,5 +1,3 @@
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-
 problems = {}
 problems['test'] = {}
 problems['test']['data_loader_params'] = {
@@ -151,7 +149,7 @@ problems['eunite']['data_loader_params'] = {
     'validation_ratio' : 0.2,
     'batch_size': 5,
     'max_look_back': 30,
-    'scaler_fn': StandardScaler}
+    'scaler_class': "sklearn.preprocessing.StandardScaler"}
 problems['eunite']['etc_params'] = {
     'num_samples': 100,
     'truncated_lower': 0.0,

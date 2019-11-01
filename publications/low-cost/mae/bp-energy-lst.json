@@ -1,11 +1,16 @@
 {
 "action_class": "dlopt.tools.training.RecurrentTraining",
 "nn_trainer_class": "dlopt.nn.TrainGradientBased",
-"architecture" : [50],
-"look_back": 3,
+"listing_class": "dlopt.sampling.FullSpaceListing",
+"listing_params" : {
+    "min_neurons": 13, 
+    "max_neurons": 52,
+    "min_layers": 2,
+    "max_layers": 2},
+"look_back": 2,
 "nn_builder_class": "dlopt.nn.RNNBuilder",
 "dense_activation": "sigmoid",
-"train_epochs": 10,
+"train_epochs": 100,
 "train_dropout": 50,
 "data_loader_class": "loaders.AppliancesEnergyDataLoader",
 "data_loader_params": {
@@ -13,13 +18,12 @@
     "batch_size" : 512,
     "training_ratio": 0.8,
     "validation_ratio": 0.2,
-    "precompute": "True",
     "x_features": ["Appliances", "lights", "T1", "RH_1", "T2", "RH_2", "T3", "RH_3", "T4",
                    "RH_4", "T5", "RH_5", "T6", "RH_6", "T7", "RH_7", "T8", "RH_8", "T9",
                    "RH_9", "T_out", "Press_mm_hg", "RH_out", "Windspeed", "Visibility",
                    "Tdewpoint"],
-    "y_features": ["Appliances", "lights"]},
+    "y_features": ["Appliances", "lights"],
+    "scaler_class": "sklearn.preprocessing.MinMaxScaler"},
 "output_logger_class": "dlopt.util.JSONOutput",
-"output_logger_params": {"filename": "26-50-2.lb3.e10.json"},
-"model_filename": "26-50-2.lb3.e10.hdf5"
+"output_logger_params": {"filename": "bp-energy-lst-out.json"}
 }

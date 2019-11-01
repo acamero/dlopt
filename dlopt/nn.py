@@ -7,13 +7,14 @@ import time
 import math
 import gc
 from . import util as ut
+from . import sampling as sp
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.models import load_model, model_from_config
-from keras.optimizers import Adam
+from keras.optimizers import Adadelta, Adagrad, Adam, Adamax, Nadam, RMSprop, SGD
 from keras.utils import plot_model, Sequence, to_categorical
 from keras import backend as K
 
@@ -34,6 +35,9 @@ class NNBuilder(ABC):
     @staticmethod
     def add_dropout(model,
                     dropout):
+        if dropout <= 0:
+            print("Warning: no dropout added (dropout value " + str(dropout) + ")")
+            return model
         x = Sequential()
         for layer in model.layers[:-1]:
             x.add(layer)
@@ -123,8 +127,10 @@ class TrainNN(ABC):
     model = None
 
     def __init__(self,
+                 seed=0,
                  verbose=0,
                  **kwargs):
+        self.seed = seed
         self.verbose = verbose
 
     @abstractmethod
@@ -136,7 +142,7 @@ class TrainNN(ABC):
 
     @abstractmethod
     def evaluate(self,
-                 train_dataset,
+                 test_dataset,
                  **kwargs):
         raise NotImplemented()
 
@@ -158,22 +164,40 @@ class TrainGradientBased(TrainNN):
     def __init__(self,
                  model_filename="trained-model.hdf5",
                  optimizer='Adam',
-                 learning_rate=5e-5,
+                 optimizer_params={'learning_rate':5e-5},
                  monitor='val_loss',
                  min_delta=1e-5,
                  patience=50,
                  metrics=['mae', 'mse', 'msle', 'mape'],
+                 seed=0,
                  verbose=0,
                  **kwargs):
-        super().__init__(verbose=verbose,
+        super().__init__(seed=seed,
+                         verbose=verbose,
                          **kwargs)
         self.checkpointer = ModelCheckpoint(filepath=model_filename,
                                             verbose=verbose,
                                             save_best_only=True)
-        if optimizer == 'Adam':
-            self.optimizer = Adam(lr=learning_rate)
+
+        if optimizer == 'Adadelta':
+            self.optimizer = Adadelta(**optimizer_params)
+        elif optimizer == 'Adagrad':
+            self.optimizer = Adagrad(**optimizer_params)
+        elif optimizer == 'Adam':
+            self.optimizer = Adam(**optimizer_params)
+        elif optimizer == 'Adamax':
+            self.optimizer = Adamax(**optimizer_params)
+        elif optimizer == 'Nadam':
+            self.optimizer = Nadam(**optimizer_params)
+        elif optimizer == 'RMSprop':
+            self.optimizer = RMSprop(**optimizer_params)
+        elif optimizer == 'SGD':
+            self.optimizer = SGD(**optimizer_params)
         else:
-            self.optimizer = optimizer
+            raise Exception("Unknown optimizer ", optimizer)
+
+        if self.verbose > 1:
+            print("Optimizer ", optimizer, str(self.optimizer.get_config()))
         self.early_stopping = EarlyStopping(monitor=monitor,
                                             min_delta=min_delta,
                                             patience=patience,
@@ -193,7 +217,7 @@ class TrainGradientBased(TrainNN):
                            optimizer=self.optimizer,
                            metrics=self.metrics)
         self.trainable_count = int(np.sum(
-            [K.count_params(p) for p in set(self.model.trainable_weights)]))
+            [K.count_params(p) for p in list(self.model.trainable_weights)]))
         start = time.time()
         if self.verbose:
             print('Start training (', start, ')')
@@ -217,11 +241,71 @@ class TrainGradientBased(TrainNN):
                 'training_time': train_time}
 
     def evaluate(self,
-                 train_dataset,
+                 test_dataset,
                  **kwargs):
-        values = self.model.evaluate_generator(train_dataset)
+        values = self.model.evaluate_generator(test_dataset)
         metrics_dict = dict(zip(self.metrics, values[1:]))
-        prediction = self.model.predict_generator(train_dataset)
+        prediction = self.model.predict_generator(test_dataset)
+        return metrics_dict, prediction
+
+
+class RandomTraining(TrainNN):
+    """ Random Training class
+    """
+    def __init__(self,
+                 weights_dist=ut.random_normal,
+                 metrics=['mae', 'mse', 'msle', 'mape'],
+                 seed=0,
+                 verbose=0,
+                 **kwargs):
+        super().__init__(seed=seed,
+                         verbose=verbose,
+                         **kwargs)
+        self.weights_dist = weights_dist
+        self.metrics = metrics
+
+    def train(self,
+              train_dataset,
+              validation_dataset=None,
+              epochs=0,
+              samples=100,
+              metric_function='mae',
+              minimize=True,
+              **kwargs):
+        trainer = sp.RandomSampling(self.seed)
+        if epochs > 0:
+            num_samples = len(train_dataset) * epochs
+        else:
+            num_samples = samples
+        if self.verbose:
+            print("Num samples: " + str(num_samples))
+        start = time.time()
+        samples, best_weights = trainer.sample(
+               self.model,
+               self.weights_dist,
+               num_samples,
+               train_dataset,
+               metric_function,
+               save_best=True,
+               minimize=minimize,
+               **kwargs)
+        #load best weights
+        self.model.set_weights(best_weights)
+        self.model.compile(optimizer='sgd', 
+                           loss=metric_function,
+                           metrics=self.metrics)
+        train_time = time.time() - start
+        if self.verbose:
+            print('Finish trainning. Total time: ', train_time)
+        return {'training_time': train_time, 
+                'samples': samples}   
+
+    def evaluate(self,
+                 test_dataset,
+                 **kwargs):        
+        values = self.model.evaluate_generator(test_dataset)
+        metrics_dict = dict(zip(self.metrics, values[1:]))
+        prediction = self.model.predict_generator(test_dataset)
         return metrics_dict, prediction
 
 

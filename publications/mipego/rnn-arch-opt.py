@@ -21,8 +21,6 @@ from dlopt import util as ut
 
 from problems import get_problems
 
-from memory_profiler import profile
-
 
 def decode_solution_flag(x):
   cells = dict(filter(lambda elem: elem[0].startswith('cells_per_layer_'), x.items()))
@@ -136,7 +134,6 @@ class MRSProblem(object):
     solution_id = str(architecture) + '+' + str(look_back)
     return model, look_back, solution_id
 
-  @profile
   def mrs_fit(self,
               x):
     self.nn_eval += 1
@@ -228,6 +225,7 @@ if __name__ == '__main__':
                       help='Add constraints to the EI')
   flags, unparsed = parser.parse_known_args()
   verbose = flags.verbose
+  print("Seed: " + str(flags.seed))
   print("Problem: " + flags.problem)
   data_loader_params = problems[flags.problem]['data_loader_params']
   etc_params = problems[flags.problem]['etc_params']

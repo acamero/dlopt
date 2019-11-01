@@ -217,6 +217,13 @@ class JSONOutput(OutputLogger):
         if 'filename' not in kwargs:
             raise Exception("JSONOutput init error: 'filename' missing")
         self.filename = kwargs['filename']
+        if ('seed' in kwargs
+                and self.filename.rfind(".") > 0):
+            self.filename = (self.filename[:self.filename.rfind(".")]
+                             + "." + str(kwargs['seed'])
+                             + self.filename[self.filename.rfind("."):])
+        elif 'seed' in kwargs:
+            self.filename += "." + str(kwargs['seed'])
 
     def output(self,
                **kwargs):
@@ -237,6 +244,13 @@ class CSVOutput(OutputLogger):
         if 'filename' not in kwargs:
             raise Exception("JSONOutput init error: 'filename' missing")
         self.filename = kwargs['filename']
+        if ('seed' in kwargs
+                and self.filename.rfind(".") > 0):
+            self.filename = (self.filename[:self.filename.rfind(".")]
+                             + "." + str(kwargs['seed'])
+                             + self.filename[self.filename.rfind("."):])
+        elif 'seed' in kwargs:
+            self.filename += "." + str(kwargs['seed'])
 
     def output(self,
                df=None,
