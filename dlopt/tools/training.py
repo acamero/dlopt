@@ -140,15 +140,24 @@ class RecurrentTraining(b.ActionBase):
                model,
                dataset,
                epochs,
+               training_dataset="trainining_data",
                **kwargs):
         start = time.time()
         trainer = kwargs['nn_trainer_class'](
             seed=self.seed,
             verbose=self.verbose,
             **kwargs)
-        trainer.load_from_model(model)                
+        trainer.load_from_model(model)
+        if training_dataset == "testing_data":
+            training_data = dataset.testing_data
+            print("WARNING: Using 'testing_data' to train")
+        elif training_dataset == "validation_data":
+            training_data = dataset.validation_data
+            print("WARNING: Using 'validation_data' to train")
+        else:
+            training_data = dataset.training_data
         tr_metrics = trainer.train(
-                dataset.training_data,
+                training_data,
                 validation_dataset=dataset.validation_data,
                 epochs=epochs,
                 **kwargs)

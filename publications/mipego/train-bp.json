@@ -5,7 +5,7 @@
 "look_back": 7,
 "nn_builder_class": "dlopt.nn.RNNBuilder",
 "dense_activation": "linear",
-"train_epochs": 1000,
+"train_epochs": 10,
 "train_dropout": 0.5,
 "optimizer": "Adam",
 "patience": 1000,

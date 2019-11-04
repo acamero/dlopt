@@ -8,6 +8,7 @@
 "train_epochs": -1,
 "samples": 100,
 "metric": "mae",
+"training_dataset": "testing_data",
 "is_minimize": "True",
 "data_loader_class": "loaders.EuniteDataLoader",
 "data_loader_params": {

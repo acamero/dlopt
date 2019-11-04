@@ -158,6 +158,7 @@ problems['eunite']['etc_params'] = {
     'model_filename': 'rnn-arch-opt-best_eunite.hdf5',
     'log_filename': 'rnn-arch-opt-best_eunite.log',
     'dropout': 0.5,
+    'patience': 1000,
     'epochs': 1000,
     'dense_activation': 'linear'}
 problems['eunite']['opt_params'] = {
@@ -166,9 +167,9 @@ problems['eunite']['opt_params'] = {
     'max_nn': 100, #max n of nn per layer
     'min_lb': 2,
     'max_lb': 30, #max look back
-    'max_eval': 100,
+    'max_eval': 3,
     'max_iter': 100,
-    'n_init_samples': 10,
+    'n_init_samples': 2,
     'data_loader_class': 'loaders.EuniteDataLoader'}
 
 def get_problems():
