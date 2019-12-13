@@ -82,7 +82,8 @@ class FullSpaceListing(ArchitectureListing):
         'min_neurons': 1,
         'max_neurons': 1,
         'min_layers': 1,
-        'max_layers': 1}
+        'max_layers': 1,
+        'pace': 1}
 
     def __init__(self):
         pass
@@ -108,9 +109,9 @@ class FullSpaceListing(ArchitectureListing):
             tmp = patch + [self.restrictions['min_neurons']]
             architectures += self._recursive(patch=tmp,
                                              layer=(layer+1))
-        if patch[layer] < self.restrictions['max_neurons']:
+        if ((patch[layer] + self.restrictions['pace']) <= self.restrictions['max_neurons']):
             tmp = patch.copy()
-            tmp[layer] = tmp[layer] + 1
+            tmp[layer] = tmp[layer] + self.restrictions['pace']
             architectures += self._recursive(patch=tmp,
                                              layer=layer)
         if len(patch) >= self.restrictions['min_layers']:

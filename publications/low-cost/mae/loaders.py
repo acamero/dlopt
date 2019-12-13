@@ -157,6 +157,7 @@ class AppliancesEnergyDataLoader(ut.DataLoader):
         if self.params['scaler_class'] is not None:
             scaler_class = ut.load_class_from_str(self.params['scaler_class'])
             self.scaler = scaler_class()
+        df = df[list(set(self.params['x_features'] + self.params['y_features']))]
         if self.scaler is not None:
             df = pd.DataFrame(self.scaler.fit_transform(df),
                               columns=df.columns)
@@ -192,10 +193,10 @@ class AppliancesEnergyDataLoader(ut.DataLoader):
         if self.scaler is None:
             return df
         df_pred = None
-        if isinstance(pred, np.ndarray):
-            df_pred = pd.DataFrame(pred, columns=dataset.y_features)
-        elif isinstance(pred, pd.DataFrame):
-            df_pred = pred
+        if isinstance(df, np.ndarray):
+            df_pred = pd.DataFrame(df, columns=dataset.y_features)
+        elif isinstance(df, pd.DataFrame):
+            df_pred = df
         else:
             raise Exception("Please provide a valid 'pred' (numpy ndarray or pandas DF)")
         _df = dataset.df.tail(df_pred.shape[0])
