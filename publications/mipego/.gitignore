@@ -1,0 +1,11 @@
+*.json
+__pycache__
+*.pyc
+*.hdf5
+*.out
+*.log
+*.csv
+config/
+manual/
+!train-random.json
+!train-bp.json

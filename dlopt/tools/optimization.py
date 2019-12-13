@@ -70,6 +70,14 @@ class Optimizer(b.ActionBase):
         if 'output_logger_class' in kwargs:
             self._set_output(kwargs['output_logger_class'],
                              kwargs['output_logger_params'])
+        model_name = kwargs['model_filename']
+        if model_name.rfind(".") > 0:
+            model_name = (model_name[:model_name.rfind(".")]
+                          + "." + str(self.seed)
+                          + model_name[model_name.rfind("."):])
+        else:
+            model_name += "." + str(self.seed)
+        kwargs['model_filename'] = model_name
         data_loader = kwargs['data_loader_class']()
         data_loader.load(**kwargs['data_loader_params'])
         problem = kwargs['problem_class'](data_loader.dataset,

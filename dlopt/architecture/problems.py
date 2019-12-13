@@ -7,6 +7,8 @@ from abc import ABC, abstractmethod
 from keras.layers.recurrent import LSTM
 import numpy as np
 from keras import backend as K
+import copy
+import gc
 
 
 class TimeSeriesMAERandSampProblem(op.Problem):
@@ -48,9 +50,6 @@ class TimeSeriesMAERandSampProblem(op.Problem):
             if self.verbose > 1:
                 print('Solution already evaluated')
             return
-        K.clear_session()
-        if self.verbose > 1:
-            print('Session cleared')
         model, layers, look_back = self.decode_solution(solution)
         self.dataset.testing_data.look_back = look_back
         sampler = self.sampler_class()
@@ -58,14 +57,15 @@ class TimeSeriesMAERandSampProblem(op.Problem):
                               self.num_samples,
                               self.dataset.testing_data,
                               **self.kwargs)
-        del sampler
+        del model
         if self.verbose > 1:
             print({'layers': layers,
                    'look_back': look_back,
                    'results': results})
         for target in self.targets:
             solution.set_fitness(target,
-                                 results[target])
+                                 copy.copy(results[target]))
+        del results
 
     def next_solution(self):
         solution = op.Solution(self.targets,

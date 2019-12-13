@@ -4,6 +4,7 @@ from .. import nn as nn
 from . import base as b
 import pandas as pd
 import numpy as np
+import gc
 
 
 class TimeSeriesMAERandomSampler(b.ActionBase):
@@ -48,11 +49,13 @@ class TimeSeriesMAERandomSampler(b.ActionBase):
                 return False
         else:
             return False
-        if ('min_look_back' not in config or
-                config['min_look_back'] < 1):
+        if (('min_look_back' not in config
+                or config['min_look_back'] < 1)
+                and 'look_back' not in config):
             return False
-        if ('max_look_back' not in config or
-                config['max_look_back'] < config['min_look_back']):
+        if (('max_look_back' not in config
+                or config['max_look_back'] < config['min_look_back'])
+                and 'look_back' not in config):
             return False
         if ('nn_builder_class' not in config or
                 not issubclass(config['nn_builder_class'],
@@ -86,17 +89,31 @@ class TimeSeriesMAERandomSampler(b.ActionBase):
         if architectures is None:
             raise Exception('No architectures found')
         nn_builder = kwargs['nn_builder_class']
-        for architecture in architectures:
-            # Build the network
-            layers = [layer_in] + architecture + [layer_out]
-            model = nn_builder.build_model(layers,
-                                           verbose=self.verbose,
-                                           **kwargs)
-            # do the sampling
-            for look_back in range(kwargs['min_look_back'],
-                                   kwargs['max_look_back']+1):
+        # do the sampling
+        if ('min_look_back' in kwargs 
+                and 'max_look_back' in kwargs):
+            look_back_list = range(kwargs['min_look_back'],
+                                   kwargs['max_look_back']+1)
+        elif ('look_back' in kwargs
+                and isinstance(kwargs['look_back'], list)):
+            look_back_list = kwargs['look_back']
+        elif ('look_back' in kwargs
+                and isinstance(kwargs['look_back'], int)):
+            look_back_list = [kwargs['look_back']]
+        else:
+            raise Exception("Please provide a valid look back configuration")
+
+        for look_back in look_back_list:
+            dataset.testing_data.look_back = look_back
+            if self.verbose:
+                print("Look back updated", look_back)
+            for architecture in architectures:
+                # Build the network
+                layers = [layer_in] + architecture + [layer_out]
+                model = nn_builder.build_model(layers,
+                                               verbose=self.verbose,
+                                               **kwargs)
                 sampler = samp.MAERandomSampling(self.seed)
-                dataset.testing_data.look_back = look_back
                 metrics = sampler.fit(model=model,
                                       data=dataset.testing_data,
                                       **kwargs)
@@ -107,7 +124,10 @@ class TimeSeriesMAERandomSampler(b.ActionBase):
                 self._output(**results)
                 if self.verbose:
                     print(results)
-            del model
+                del results
+                del model
+                del sampler
+                gc.collect()
 
 
 class CategoricalSeqRandomSampler(b.ActionBase):

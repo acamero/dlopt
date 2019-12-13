@@ -1,21 +1,24 @@
 import tensorflow as tf
 import numpy as np
 import random as rd
+import gc
+import copy
 from . import util as ut
 from scipy.stats import truncnorm
 from abc import ABC, abstractmethod
 import time
 from sklearn.metrics import log_loss
+from keras.models import model_from_json
 
 
 class RandomSampling(object):
     """ Perform a random sampling using a given metric"""
     def __init__(self,
-                 seed=None):
+                 seed=None):        
         if seed is not None:
             np.random.seed(seed)
             rd.seed(seed)
-            tf.set_random_seed(seed)
+            tf.random.set_seed(seed)
 
     def sample(self,
                model,
@@ -23,15 +26,29 @@ class RandomSampling(object):
                num_samples,
                data,
                metric_function,
+               save_best=False,
+               minimize=True,
                **kwargs):
+        best_weights = None
+        best_metric_val = None
         sampled_metrics = list()
-        model.compile(optimizer='sgd', loss=metric_function)
+        model.compile(optimizer='sgd', loss=metric_function, metrics=[metric_function])
+        data._precompute()
         for i in range(num_samples):
             weights = self._generate_weights(model, init_function, **kwargs)
             model.set_weights(weights)
-            metric = model.evaluate_generator(data)
-            sampled_metrics.append(metric)
-        return sampled_metrics
+            metric = model.evaluate_generator(data)[1]
+            sampled_metrics.append(copy.copy(metric))
+            if save_best:
+                if (best_metric_val is None
+                        or ((minimize and metric < best_metric_val)
+                             or (not minimize and metric > best_metric_val))):
+                    best_metric_val = metric
+                    del best_weights
+                    gc.collect()
+                    best_weights = weights
+        gc.collect()
+        return sampled_metrics, best_weights
 
     def _generate_weights(self,
                           model,
@@ -65,7 +82,8 @@ class FullSpaceListing(ArchitectureListing):
         'min_neurons': 1,
         'max_neurons': 1,
         'min_layers': 1,
-        'max_layers': 1}
+        'max_layers': 1,
+        'pace': 1}
 
     def __init__(self):
         pass
@@ -91,9 +109,9 @@ class FullSpaceListing(ArchitectureListing):
             tmp = patch + [self.restrictions['min_neurons']]
             architectures += self._recursive(patch=tmp,
                                              layer=(layer+1))
-        if patch[layer] < self.restrictions['max_neurons']:
+        if ((patch[layer] + self.restrictions['pace']) <= self.restrictions['max_neurons']):
             tmp = patch.copy()
-            tmp[layer] = tmp[layer] + 1
+            tmp[layer] = tmp[layer] + self.restrictions['pace']
             architectures += self._recursive(patch=tmp,
                                              layer=layer)
         if len(patch) >= self.restrictions['min_layers']:
@@ -130,12 +148,13 @@ class MAERandomSampling(RandomSamplingFit):
             threshold=0.01,
             **kwargs):
         start = time.time()
-        samples = self.sampler.sample(model,
-                                      ut.random_normal,
-                                      num_samples,
-                                      data,
-                                      'mae',
-                                      **kwargs)
+        samples, _ = self.sampler.sample(
+            model,
+            ut.random_normal,
+            num_samples,
+            data,
+            'mae',
+            **kwargs)
         """
         The standard form of this distribution is a standard normal truncated
         to the range [a, b] — notice that a and b are defined over the domain
@@ -153,7 +172,12 @@ class MAERandomSampling(RandomSamplingFit):
                                     b,
                                     loc=mean,
                                     scale=std)
-        log_p = np.log(p_threshold)
+        if p_threshold == 0:
+            # log_p = np.finfo(float).min
+            # Some software, e.g., mipego, have trouble dealing with long floats...
+            log_p = np.log(1e-300)
+        else:
+            log_p = np.log(p_threshold)
         sampling_time = time.time() - start
         return {'p': p_threshold,
                 'log_p': log_p,

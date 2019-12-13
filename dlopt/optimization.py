@@ -18,7 +18,7 @@ class ModelOptimization(ABC):
         if seed is not None:
             np.random.seed(seed)
             rd.seed(seed)
-            tf.set_random_seed(seed)
+            tf.random.set_seed(seed)
         if not isinstance(problem,
                           Problem):
             raise Exception("A valid problem must be provided")

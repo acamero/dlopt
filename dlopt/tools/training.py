@@ -2,10 +2,12 @@ from .. import optimization as op
 from .. import util as ut
 from .. import nn as nn
 from . import base as b
+from .. import sampling as sp
 import pandas as pd
 import numpy as np
 import datetime
 import time
+import gc
 
 
 class RecurrentTraining(b.ActionBase):
@@ -15,13 +17,13 @@ class RecurrentTraining(b.ActionBase):
 
     Mandatory parameters:
     data_loader_class and data_loader_params
-    architecture
+    architecture or listing_class
     x_features
     y_features
     look_back
     nn_builder_class
     dropout
-    epochs
+    train_epochs
     
 
     Optional:
@@ -43,16 +45,15 @@ class RecurrentTraining(b.ActionBase):
                 return False
         else:
             return False
-        if 'architecture' not in config:
+        if ('architecture' not in config
+                and 'listing_class' not in config):
             return False
         if 'train_epochs' not in config:
-            return False
-        if 'train_dropout' not in config:
             return False
         if 'output_logger_class' in config:
             if not issubclass(config['output_logger_class'],
                               ut.OutputLogger):
-                return False
+                return Fals
             if 'output_logger_params' not in config:
                 return False
         return True
@@ -68,49 +69,101 @@ class RecurrentTraining(b.ActionBase):
         data_loader.load(**kwargs['data_loader_params'])
         dataset = data_loader.dataset
         builder = kwargs['nn_builder_class']
-        model = builder.build_model(kwargs['architecture'],
-                                    verbose=self.verbose,
-                                    **kwargs)
-        model = builder.add_dropout(model, kwargs['train_dropout'])
-        builder.init_weights(model,
-                             ut.random_uniform,
-                             low=-0.5,
-                             high=0.5)
-        if 'look_back' in kwargs:
-            dataset.training_data.look_back = kwargs['look_back']
-            dataset.validation_data.look_back = kwargs['look_back']
-            dataset.testing_data.look_back = kwargs['look_back']
+
+        architectures = None
+        if 'listing_class' in kwargs:
+            listing = kwargs['listing_class']()
+            architectures = listing.list_architectures(
+                **kwargs['listing_params'])
+        else:
+            architectures = []
+            architectures.append(kwargs['architecture'])
+
+        if architectures is None:
+            raise Exception('No architectures found')
+
+        layer_in = dataset.input_dim
+        layer_out = dataset.output_dim
+
+        if 'look_back' not in kwargs:
+            look_back = [dataset.training_data.look_back]
+        elif isinstance(kwargs['look_back'], list):
+            look_back = kwargs['look_back']
+        else:
+            look_back = [kwargs['look_back']]
+
+        for lb in look_back:
+            dataset.training_data.look_back = lb
+            dataset.validation_data.look_back = lb
+            dataset.testing_data.look_back = lb
             if self.verbose:
-                print("Look back updated")
-        metrics, pred = self._train(model,
-                                    dataset,
-                                    kwargs['train_epochs'],
-                                    **kwargs)
-        solution_desc = {}
-        solution_desc['y_predicted'] = pred.tolist()
-        solution_desc['testing_metrics'] = metrics
-        self._output(**solution_desc)
-        if self.verbose:
-            print(solution_desc)
+                print("Look back updated ", lb)
+            for architecture in architectures:
+                layers = [layer_in] + architecture + [layer_out]
+                model = builder.build_model(
+                    layers,
+                    verbose=self.verbose,
+                    **kwargs)
+                if 'train_dropout' in kwargs:
+                    model = builder.add_dropout(model, kwargs['train_dropout'])
+                builder.init_weights(
+                    model,
+                    ut.random_uniform,
+                    low=-0.5,
+                    high=0.5)
+        
+                metrics, pred, tr_metrics = self._train(
+                    model,
+                    dataset,
+                    kwargs['train_epochs'],
+                    **kwargs)
+                solution_desc = {}
+                solution_desc['architecture'] = layers
+                solution_desc['look_back'] = kwargs['look_back']
+                solution_desc['y_predicted'] = pred.tolist()
+                solution_desc['testing_metrics'] = metrics
+                solution_desc['training_metrics'] = tr_metrics
+                if hasattr(data_loader, 'inverse_transform'):
+                    pred_real = data_loader.inverse_transform(dataset.testing_data, pred)
+                    if isinstance(pred_real, np.ndarray):
+                        solution_desc['y_real_predicted'] = pred_real.tolist()
+                    else:
+                        solution_desc['y_real_predicted'] = pred_real.values.tolist()
+                self._output(**solution_desc)
+                if self.verbose:
+                    print(solution_desc)
+                del model
+                del solution_desc
+                gc.collect()
 
     def _train(self,
                model,
                dataset,
                epochs,
+               training_dataset="trainining_data",
                **kwargs):
         start = time.time()
-        trainer = kwargs['nn_trainer_class'](verbose=self.verbose,
-                                        **kwargs)
-        trainer.load_from_model(model)                
-        trainer.train(dataset.training_data,
-                      validation_dataset=dataset.validation_data,
-                      epochs=epochs,
-                      **kwargs)
+        trainer = kwargs['nn_trainer_class'](
+            seed=self.seed,
+            verbose=self.verbose,
+            **kwargs)
+        trainer.load_from_model(model)
+        if training_dataset == "testing_data":
+            training_data = dataset.testing_data
+            print("WARNING: Using 'testing_data' to train")
+        elif training_dataset == "validation_data":
+            training_data = dataset.validation_data
+            print("WARNING: Using 'validation_data' to train")
+        else:
+            training_data = dataset.training_data
+        tr_metrics = trainer.train(
+                training_data,
+                validation_dataset=dataset.validation_data,
+                epochs=epochs,
+                **kwargs)
         metrics, pred = trainer.evaluate(dataset.testing_data,
                                          **kwargs)
         del trainer
         evaluation_time = time.time() - start
         metrics['evaluation_time'] = evaluation_time
-        if self.verbose:
-            print(metrics)
-        return metrics, pred
+        return metrics, pred, tr_metrics

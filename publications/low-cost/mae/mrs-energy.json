@@ -2,18 +2,18 @@
 "action_class": "dlopt.tools.architecture.TimeSeriesMAERandomSampler",
 "listing_class": "dlopt.sampling.FullSpaceListing",
 "listing_params" : {
-    "min_neurons": 1, 
-    "max_neurons": 100,
-    "min_layers": 1,
-    "max_layers": 1},
+    "min_neurons": 13, 
+    "max_neurons": 52,
+    "min_layers": 2,
+    "max_layers": 2},
 "min_look_back": 2,
-"max_look_back": 30,
-"num_samples": 1000,
+"max_look_back": 2,
+"num_samples": 100,
 "nn_builder_class": "dlopt.nn.RNNBuilder",
 "dense_activation": "sigmoid",
 "truncated_lower": 0,
 "truncated_upper": 1,
-"data_loader_class": "publications.low-cost.mae.energy.AppliancesEnergyDataLoader",
+"data_loader_class": "loaders.AppliancesEnergyDataLoader",
 "data_loader_params": {
     "filename": "../../../data/app-energy/energydata_complete.csv",
     "batch_size" : 512,
@@ -23,7 +23,8 @@
                    "RH_4", "T5", "RH_5", "T6", "RH_6", "T7", "RH_7", "T8", "RH_8", "T9",
                    "RH_9", "T_out", "Press_mm_hg", "RH_out", "Windspeed", "Visibility",
                    "Tdewpoint"],
-    "y_features": ["Appliances", "lights"]},
+    "y_features": ["Appliances", "lights"],
+    "scaler_class": "sklearn.preprocessing.MinMaxScaler"},
 "output_logger_class": "dlopt.util.JSONOutput",
-"output_logger_params": {"filename": "mrs-energy-out-2.json"}
+"output_logger_params": {"filename": "mrs-energy-out.json"}
 }

@@ -87,8 +87,11 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
                                         high=0.5)
         trainer.load_from_model(model)
         self.dataset.training_data.look_back = look_back
+        self.dataset.training_data.batch_size = self.batch_size
         self.dataset.validation_data.look_back = look_back
+        self.dataset.validation_data.batch_size = self.batch_size
         self.dataset.testing_data.look_back = look_back
+        self.dataset.testing_data.batch_size = self.batch_size
         trainer.train(self.dataset.training_data,
                       validation_dataset=self.dataset.validation_data,
                       epochs=epochs,
@@ -99,9 +102,6 @@ class TimeSeriesHybridMRSProblem(pr.TimeSeriesMAERandSampProblem):
         metrics['evaluation_time'] = evaluation_time
         del trainer
         gc_out = gc.collect()
-        if self.verbose > 1:
-            print("GC collect", gc_out)
-            print(gc.garbage)
         if self.verbose:
             print(metrics)
         return model, metrics, pred

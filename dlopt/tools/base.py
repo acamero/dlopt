@@ -28,4 +28,6 @@ class ActionBase(object):
     def _set_output(self,
                     output_logger_class,
                     output_logger_params):
+        if 'seed' not in output_logger_params:
+            output_logger_params['seed'] = self.seed
         self._output_logger = output_logger_class(**output_logger_params)
