@@ -1,0 +1,103 @@
+---
+title: "Low cost"
+author: "Andrés Camero"
+date: "March 12, 2018"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+library(rjson)
+library(ggplot2)
+library(stats)
+
+knitr::opts_chunk$set(dev = 'png')
+setwd("~/Documents/git/dlopt/publications/low-cost/mae/results")
+```
+
+```{r echo=FALSE, warning=FALSE}
+
+readMRSLog <- function(exec.log) {
+  raw <- readLines(exec.log)
+  ljson <- lapply(raw, function(x) {
+    raw.json <- fromJSON(x)
+    data.frame("p"=raw.json$metrics$p, 
+               "log.p"=raw.json$metrics$log_p,
+               "mean"=raw.json$metrics$mean,
+               "std"=raw.json$metrics$std,
+               "architecture"=paste(raw.json$architecture, collapse="-"),
+               "nc"=sum(raw.json$architecture[2:(length(raw.json$architecture)-1)]),
+               "lb"=raw.json$look_back,
+               "hl"=length(raw.json$architecture)-2)
+  })
+  mrs <- do.call(rbind.data.frame, ljson)
+  return(mrs)
+}
+
+loadMRS <- function(path) {
+  mrs.files <- list.files(path, pattern="mrs*")
+  lmrs <- lapply(mrs.files, function(x) {
+    readMRSLog(paste(path, x, sep="/"))
+  })
+  mrs <- do.call(rbind.data.frame, lmrs)
+  return(mrs)
+}
+
+readBPLog <- function(exec.log) {
+  raw <- readLines(exec.log)
+  ljson <- lapply(raw, function(x) {
+    raw.json <- fromJSON(x)
+    data.frame("mae"=raw.json$testing_metrics$mae,
+               "mape"=raw.json$testing_metrics$mape,
+               "architecture"=paste(raw.json$architecture, collapse="-"),
+               "lb"=raw.json$look_back,
+               "hl"=length(raw.json$architecture)-2)
+  })
+  bp <- do.call(rbind.data.frame, ljson)
+  return(bp)
+}
+
+loadBP <- function(path) {
+  bp.files <- list.files(path, pattern="bp*")
+  lbp <- lapply(bp.files, function(x) {
+    readBPLog(paste(path, x, sep="/"))
+  })
+  bp <- do.call(rbind.data.frame, lbp)
+  return(bp)
+}
+
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+energy.mrs <- loadMRS("energy")
+energy.bp <- loadBP("energy")
+energy <- merge(energy.bp, energy.mrs, by=c("architecture", "lb", "hl"))
+
+parking.mrs <- loadMRS("birmingham")
+parking.bp <- loadBP("birmingham")
+parking <- merge(parking.bp, parking.mrs, by=c("architecture", "lb", "hl"))
+
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+
+cor(energy[energy$hl==1,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(energy[energy$hl==2,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(energy[energy$hl==3,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(energy[,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+
+cor(parking[parking$hl==1,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(parking[parking$hl==2,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(parking[parking$hl==3,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(parking[,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+
+
+
+```

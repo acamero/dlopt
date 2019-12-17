@@ -119,7 +119,7 @@ class RecurrentTraining(b.ActionBase):
                     **kwargs)
                 solution_desc = {}
                 solution_desc['architecture'] = layers
-                solution_desc['look_back'] = kwargs['look_back']
+                solution_desc['look_back'] = lb
                 solution_desc['y_predicted'] = pred.tolist()
                 solution_desc['testing_metrics'] = metrics
                 solution_desc['training_metrics'] = tr_metrics
