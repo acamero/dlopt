@@ -15,10 +15,13 @@ editor_options:
 library(rjson)
 library(ggplot2)
 library(stats)
+library(reshape2)
+library(plotly)
 
 knitr::opts_chunk$set(dev = 'png')
 setwd("~/Documents/git/dlopt/publications/low-cost/mae/results")
 ```
+
 
 ```{r echo=FALSE, warning=FALSE}
 
@@ -33,7 +36,10 @@ readMRSLog <- function(exec.log) {
                "architecture"=paste(raw.json$architecture, collapse="-"),
                "nc"=sum(raw.json$architecture[2:(length(raw.json$architecture)-1)]),
                "lb"=raw.json$look_back,
-               "hl"=length(raw.json$architecture)-2)
+               "hl"=length(raw.json$architecture)-2,
+               "hl1"=raw.json$architecture[2],
+               "hl2"=if(length(raw.json$architecture)>3) raw.json$architecture[3] else NA,
+               "hl3"=if(length(raw.json$architecture)>4) raw.json$architecture[4] else NA)
   })
   mrs <- do.call(rbind.data.frame, ljson)
   return(mrs)
@@ -45,6 +51,7 @@ loadMRS <- function(path) {
     readMRSLog(paste(path, x, sep="/"))
   })
   mrs <- do.call(rbind.data.frame, lmrs)
+  mrs$architecture <- as.character(mrs$architecture)
   return(mrs)
 }
 
@@ -56,7 +63,10 @@ readBPLog <- function(exec.log) {
                "mape"=raw.json$testing_metrics$mape,
                "architecture"=paste(raw.json$architecture, collapse="-"),
                "lb"=raw.json$look_back,
-               "hl"=length(raw.json$architecture)-2)
+               "hl"=length(raw.json$architecture)-2,
+               "hl1"=raw.json$architecture[2],
+               "hl2"=if(length(raw.json$architecture)>3) raw.json$architecture[3] else NA,
+               "hl3"=if(length(raw.json$architecture)>4) raw.json$architecture[4] else NA)
   })
   bp <- do.call(rbind.data.frame, ljson)
   return(bp)
@@ -68,6 +78,7 @@ loadBP <- function(path) {
     readBPLog(paste(path, x, sep="/"))
   })
   bp <- do.call(rbind.data.frame, lbp)
+  bp$architecture <- as.character(bp$architecture)
   return(bp)
 }
 
@@ -75,18 +86,23 @@ loadBP <- function(path) {
 
 
 ```{r echo=FALSE, warning=FALSE}
+
+#Data loading
+
 energy.mrs <- loadMRS("energy")
 energy.bp <- loadBP("energy")
-energy <- merge(energy.bp, energy.mrs, by=c("architecture", "lb", "hl"))
+energy <- merge(energy.bp, energy.mrs, by=c("architecture", "lb", "hl", "hl1", "hl2", "hl3"))
 
 parking.mrs <- loadMRS("birmingham")
 parking.bp <- loadBP("birmingham")
-parking <- merge(parking.bp, parking.mrs, by=c("architecture", "lb", "hl"))
+parking <- merge(parking.bp, parking.mrs, by=c("architecture", "lb", "hl", "hl1", "hl2", "hl3"))
 
 ```
 
 
 ```{r echo=FALSE, warning=FALSE}
+
+#Correlation
 
 cor(energy[energy$hl==1,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
 cor(energy[energy$hl==2,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
@@ -99,5 +115,110 @@ cor(parking[parking$hl==3,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "
 cor(parking[,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
 
 
+
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+df <- parking
+df <- energy
+
+df <- df[df$hl==2,]
+
+model <- lm( mae~log.p, data=df)
+pl <- ggplot(df, aes(x=log.p, y=mae))
+pl <- pl + geom_point(aes(color=as.factor(lb), shape=as.factor(hl)))
+pl <- pl + stat_function(fun=function(x) {model$coefficients[1] + model$coefficients[2]*x})
+pl <- pl + guides(color=guide_legend("LB"), shape=guide_legend("HL"))
+pl <- pl + labs(x="log P", y="MAE") 
+pl <- pl + theme_minimal()
+plot(pl)
+
+
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+df <- parking
+df <- energy
+
+df <- df[df$hl==2,]
+
+surface <- acast(df[which(df$hl==2 & df$lb==2),], hl1~hl2, value.var="log.p")
+p3d <- plot_ly(z=surface) %>%
+  add_surface(contours = list(
+    z = list(
+      show=TRUE,
+      usecolormap=TRUE,
+      highlightcolor="#ff0000",
+      project=list(z=TRUE)
+      )
+    ))
+p3d
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+
+# Ajuste lineal MAE ~ log(P)
+
+fit.obs <- function(data, seed, print=FALSE) {
+  set.seed(seed)
+  split <- as.integer(nrow(data)*.8)
+  train <- sample(nrow(data), split)
+  test <- seq(1, nrow(data), 1)[!(1:nrow(data) %in% train)]
+  model <- lm( mae ~ log.p , data=data[train,])
+  sm <- summary(model)
+  test.data <- as.data.frame(predict.lm(model, data[test,]))
+  colnames(test.data) <- c("predicted")
+  test.data$observed <- data$mae[test]
+  test.data$log.p <- data$log.p[test]
+  test.data$predicted.decil <- as.integer(cut(test.data$predicted, quantile(test.data$predicted, probs = 0:10/10), include.lowest = TRUE))
+  test.data$observed.decil <- as.integer(cut(test.data$observed, quantile(test.data$observed, probs = 0:10/10), include.lowest = TRUE))
+  test.data$diff.decil <- test.data$observed.decil - test.data$predicted.decil
+  cor.res <- cor.test(test.data$predicted.decil, test.data$observed.decil, method="spearman")
+  one.diff <- sum(test.data$diff.decil %in% c(-1,0,1) ) / nrow(test.data)
+  output <- data.frame("intercept"=sm$coefficients[1,1], "residual.std.error"=sm$sigma, "perc.error"=sm$sigma/sm$coefficients[1,1], "f.stat"=sm$fstatistic[1], "cor.estimate"=cor.res$estimate, "cor.p.value"=cor.res$p.value, "one.diff.perc"=one.diff)
+  if(print) {
+    p1 <- ggplot(data=test.data, aes(x=observed, y=predicted)) + theme_minimal() 
+    p1 <- p1 + geom_point(aes(color=abs(diff.decil)))
+    p1 <- p1 + scale_color_continuous(low="green", high="red", na.value = "green", breaks=1:max(test.data$diff.decil))
+    p1 <- p1 + labs(x="Observed MAE", y="Predicted MAE") 
+    #p1 <- p1 + stat_function(fun=function(x) x) 
+    p1 <- p1 + theme_minimal()
+    p1 <- p1 + guides(color=guide_legend("Absolute\nDiff. Dec."))
+    plot(p1)
+    
+    p2 <- ggplot(data=test.data, aes(x=log.p, y=observed)) + theme_minimal() 
+    p2 <- p2 + geom_point(aes(color=abs(diff.decil)))
+    p2 <- p2 + scale_color_continuous(low="green", high="red", na.value = "green", breaks=1:max(test.data$diff.decil))
+    p2 <- p2 + labs(x="log P", y="Observed MAE")
+    p2 <- p2 + stat_function(fun=function(x) {sm$coefficients[1,1] + sm$coefficients[2,1]*x})
+    p2 <- p2 + guides(color=guide_legend("Absolute\nDiff. Dec."))
+    p2 <- p2 + theme_minimal()
+    plot(p2)
+    
+    p3 <- ggplot(data=test.data, aes(x=diff.decil, fill=as.factor(abs(diff.decil))))
+    p3 <- p3 + geom_histogram(binwidth = 1)
+    p3 <- p3 + labs(x="Difference between decile observed and predicted", y="Frequency")
+    p3 <- p3 + theme_minimal()
+    p3 <- p3 + scale_fill_manual(values=scales::seq_gradient_pal("green", "red", "Lab")(seq(0,1,length.out=10)), guide=FALSE)
+    p3 <- p3 + theme(legend.fill=FALSE)
+    plot(p3)
+  }
+  return(output)
+}
+
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+
+
+lms.parking <- lapply(1:30, function(s){ fit.obs(parking, seed=s) })
+lms.parking <- do.call(rbind.data.frame, lms.parking)
+colMeans(lms.parking)
+
+a <- fit.obs(parking, seed=10, print=TRUE)
 
 ```
