@@ -19,7 +19,7 @@ library(reshape2)
 library(plotly)
 
 knitr::opts_chunk$set(dev = 'png')
-setwd("~/Documents/git/dlopt/publications/low-cost/mae/results")
+setwd("~/git/dlopt/publications/low-cost/mae/results")
 ```
 
 
@@ -88,6 +88,9 @@ loadBP <- function(path) {
 ```{r echo=FALSE, warning=FALSE}
 
 #Data loading
+sin.mrs <- loadMRS("sin")
+sin.bp <- loadBP("sin")
+sin <- merge(sin.bp, sin.mrs, by=c("architecture", "lb", "hl", "hl1", "hl2", "hl3"))
 
 energy.mrs <- loadMRS("energy")
 energy.bp <- loadBP("energy")
@@ -104,6 +107,11 @@ parking <- merge(parking.bp, parking.mrs, by=c("architecture", "lb", "hl", "hl1"
 
 #Correlation
 
+cor(sin[sin$hl==1,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(sin[sin$hl==2,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(sin[sin$hl==3,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+cor(sin[,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
+
 cor(energy[energy$hl==1,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
 cor(energy[energy$hl==2,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
 cor(energy[energy$hl==3,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
@@ -115,11 +123,20 @@ cor(parking[parking$hl==3,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "
 cor(parking[,c("mae", "mape", "nc", "lb", "mean", "std", "log.p", "p")])
 
 
+df <- sin
+df <- parking
+df <- energy
+
+cor(df[df$hl==1, c("mae", "nc", "lb", "mean", "std", "log.p")])
+cor(df[df$hl==2, c("mae", "nc", "lb", "mean", "std", "log.p")])
+cor(df[df$hl==3, c("mae", "nc", "lb", "mean", "std", "log.p")])
+cor(df[, c("mae", "nc", "lb", "mean", "std", "log.p")])
 
 ```
 
 
 ```{r echo=FALSE, warning=FALSE}
+df <- sin
 df <- parking
 df <- energy
 
@@ -139,6 +156,7 @@ plot(pl)
 
 
 ```{r echo=FALSE, warning=FALSE}
+df <- sin
 df <- parking
 df <- energy
 
@@ -178,7 +196,8 @@ fit.obs <- function(data, seed, print=FALSE) {
   test.data$diff.decil <- test.data$observed.decil - test.data$predicted.decil
   cor.res <- cor.test(test.data$predicted.decil, test.data$observed.decil, method="spearman")
   one.diff <- sum(test.data$diff.decil %in% c(-1,0,1) ) / nrow(test.data)
-  output <- data.frame("intercept"=sm$coefficients[1,1], "residual.std.error"=sm$sigma, "perc.error"=sm$sigma/sm$coefficients[1,1], "f.stat"=sm$fstatistic[1], "cor.estimate"=cor.res$estimate, "cor.p.value"=cor.res$p.value, "one.diff.perc"=one.diff)
+  two.diff <- sum(test.data$diff.decil %in% c(-2,-1,0,1,2) ) / nrow(test.data)
+  output <- data.frame("intercept"=sm$coefficients[1,1], "residual.std.error"=sm$sigma, "perc.error"=sm$sigma/sm$coefficients[1,1], "f.stat"=sm$fstatistic[1], "cor.estimate"=cor.res$estimate, "cor.p.value"=cor.res$p.value, "one.diff.perc"=one.diff, "two.diff.perc"=two.diff)
   if(print) {
     p1 <- ggplot(data=test.data, aes(x=observed, y=predicted)) + theme_minimal() 
     p1 <- p1 + geom_point(aes(color=abs(diff.decil)))
@@ -203,7 +222,6 @@ fit.obs <- function(data, seed, print=FALSE) {
     p3 <- p3 + labs(x="Difference between decile observed and predicted", y="Frequency")
     p3 <- p3 + theme_minimal()
     p3 <- p3 + scale_fill_manual(values=scales::seq_gradient_pal("green", "red", "Lab")(seq(0,1,length.out=10)), guide=FALSE)
-    p3 <- p3 + theme(legend.fill=FALSE)
     plot(p3)
   }
   return(output)
@@ -213,12 +231,14 @@ fit.obs <- function(data, seed, print=FALSE) {
 
 
 ```{r echo=FALSE, warning=FALSE}
+df <- sin
+df <- energy
+df <- parking
 
+lms.df <- lapply(1:30, function(s){ fit.obs(df, seed=s) })
+lms.df <- do.call(rbind.data.frame, lms.df)
+colMeans(lms.df)
 
-lms.parking <- lapply(1:30, function(s){ fit.obs(parking, seed=s) })
-lms.parking <- do.call(rbind.data.frame, lms.parking)
-colMeans(lms.parking)
-
-a <- fit.obs(parking, seed=10, print=TRUE)
+a <- fit.obs(df, seed=10, print=TRUE)
 
 ```
