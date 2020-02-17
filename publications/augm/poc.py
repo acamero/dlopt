@@ -15,7 +15,7 @@ from BayesOpt.SearchSpace import ContinuousSpace, NominalSpace, OrdinalSpace, Pr
 
 ##########################################
 # Problems
-MAX_EVALS = 100
+MAX_EVALS = 30
 N_INIT_SAMPLES = 10
 X = range(0,100)
 MAX_DIM = 5 # i.e., up to x^(MAX_DIM-1)
@@ -114,8 +114,37 @@ class PolyFitProblem(object):
     return self.error_fn(self.Y, _Y)
 
 
-    
-
+def BO_cycle(
+      search_space,
+      problem,
+      model, 
+      max_eval,
+      verbose,
+      log_file,
+      random_seed,
+      data_file,
+      warm_data):
+  opt = BO(
+      search_space,
+      problem,
+      model, 
+      minimize=True,
+      max_eval=max_eval,
+      infill='EI',
+      n_init_sample=N_INIT_SAMPLES,
+      n_point=1,
+      n_job=1,
+      optimizer='MIES',
+      eval_type='dict',
+      verbose=verbose,
+      log_file=log_file,
+      random_seed=random_seed,
+      data_file=data_file,
+      warm_data=warm_data)
+  incumbent_list, fitness, stop_dict = opt.run()
+  print(stop_dict)
+  best_sol = opt.xopt.to_dict()
+  return best_sol, fitness, incumbent_list
     
 
 
@@ -192,26 +221,20 @@ if __name__ == '__main__':
   
   filename = flags.strategy + "_" + flags.error + "_" + flags.encoding + "_" + str(flags.degree) + "_" + str(flags.seed)
   if flags.strategy == 'variable':
-    opt = BO(
+    print("### Begin Optimization ######################################")
+    best_sol, fitness, incumbent_list = BO_cycle(
         search_space,
         problem.fit,
-        model, 
-        minimize=True,
+        model,         
         max_eval=MAX_EVALS,
-        infill='EI',
-        n_init_sample=N_INIT_SAMPLES,
-        n_point=1,
-        n_job=1,
-        optimizer='MIES',
-        eval_type='dict',
         verbose=flags.verbose,
         log_file=filename + ".log",
         random_seed=flags.seed,
-        data_file=filename + ".data")
-
-    print("### Begin Optimization ######################################")
-    incumbent_list, fitness, stop_dict = opt.run()
-    print(stop_dict)
-    best_sol = opt.xopt.to_dict()
+        data_file=filename + ".data",
+        warm_data=None)
     print("Best solution: " + str(best_sol) + ", Fitness: " + str(fitness))
-    print("### End Optimization ######################################")
+    print("### End Optimization ######################################")  
+  elif flags.strategy == 'augm':
+    #TODO usar BO_cycle para aumentar progresivamente el espacio de búsqueda
+    pass
+
