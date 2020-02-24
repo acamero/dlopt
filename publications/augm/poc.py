@@ -16,8 +16,8 @@ from BayesOpt.SearchSpace import ContinuousSpace, NominalSpace, OrdinalSpace, Pr
 
 ##########################################
 # Problems
-MAX_EVALS = 100
-N_INIT_SAMPLES = 5
+MAX_EVALS = 1000
+N_INIT_SAMPLES = 20
 X = range(0,30)
 MAX_DIM = 10 # i.e., up to x^(MAX_DIM-1)
 
@@ -38,7 +38,7 @@ def decode_solution_flag(x):
   dims = sorted(dims.items())
   poly = []
   for c, l in zip(coeffs, dims):
-    if l[1] == 'Y':
+    if l[1] == 1:
       poly.append(c[1])
     else:
       poly.append(0)
@@ -246,11 +246,11 @@ if __name__ == '__main__':
     print("Encoding: " + flags.encoding)
     if flags.encoding == 'flag':
       coeffs = ContinuousSpace([-1, 1], 'coeffs') * MAX_DIM
-      dims = NominalSpace(['Y', 'N'], 'dims') * MAX_DIM
+      dims = OrdinalSpace([0,1], 'dims') * MAX_DIM
       search_space = ProductSpace(coeffs, dims)
       solution_decoder = decode_solution_flag
-      #model = RandomForest()
-      model = RandomForest(levels=search_space.levels)
+      model = RandomForest()
+      #model = RandomForest(levels=search_space.levels)
     elif flags.encoding == 'size':
       coeffs = ContinuousSpace([-1, 1], 'coeffs') * MAX_DIM
       dim = OrdinalSpace([1, MAX_DIM], 'dim')
