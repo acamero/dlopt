@@ -140,7 +140,7 @@ df <- sin
 df <- parking
 df <- energy
 
-df <- df[df$hl==2,]
+df <- df[df$hl==1,]
 
 model <- lm( mae~log.p, data=df)
 pl <- ggplot(df, aes(x=log.p, y=mae))
@@ -148,6 +148,22 @@ pl <- pl + geom_point(aes(color=as.factor(lb), shape=as.factor(hl)))
 pl <- pl + stat_function(fun=function(x) {model$coefficients[1] + model$coefficients[2]*x})
 pl <- pl + guides(color=guide_legend("LB"), shape=guide_legend("HL"))
 pl <- pl + labs(x="log P", y="MAE") 
+pl <- pl + theme_minimal()
+plot(pl)
+
+pl <- ggplot(df[df$hl==1,], aes(x=log.p, y=mae))
+pl <- pl + geom_point(aes(color=as.factor(lb), shape=as.factor(hl)))
+pl <- pl + guides(color=guide_legend("LB"), shape=guide_legend("HL"))
+pl <- pl + scale_y_log10()
+pl <- pl + labs(x="log P", y="MAE") 
+pl <- pl + theme_minimal()
+plot(pl)
+
+
+pl <- ggplot(df[df$hl==3,], aes(x=nc, y=log.p))
+pl <- pl + geom_point(aes(color=as.factor(lb), shape=as.factor(hl)))
+pl <- pl + guides(color=guide_legend("LB"), shape=guide_legend("HL"))
+pl <- pl + labs(x="Total number of neurons", y="log P") 
 pl <- pl + theme_minimal()
 plot(pl)
 
@@ -242,3 +258,60 @@ colMeans(lms.df)
 a <- fit.obs(df, seed=10, print=TRUE)
 
 ```
+
+
+
+```{r echo=FALSE, warning=FALSE}
+
+# Comparación de a pares
+pairwise.comp <- function(df, tolerance=0.01) {
+  archs <- nrow(df)
+  cmp.eq <- 0
+  n <- 0
+  gg <- 0
+  gl <- 0
+  lg <- 0
+  ll <- 0
+  gg.tol <- 0
+  gl.tol <- 0
+  lg.tol <- 0
+  ll.tol <- 0
+  for(x in 1:archs) {
+    for(y in 1:archs) {
+      if(x != y) {
+        n <- n + 1
+        
+        # Fuzzy with out tolerance
+        if( df$log.p[x] >= df$log.p[y] && df$mae[x] <= df$mae[y]) {
+          gl <- gl + 1
+        } else if( df$log.p[x] >= df$log.p[y] && df$mae[x] >= df$mae[y]) {
+          gg <- gg + 1
+        } else if( df$log.p[x] <= df$log.p[y] && df$mae[x] >= df$mae[y]) {
+          lg <- lg + 1
+        } else {
+          ll <- ll + 1
+        }
+        
+        # Fuzzy with tolerance
+        if( df$log.p[x] >= df$log.p[y] && (df$mae[x] <= df$mae[y] || abs(1- (df$mae[x]/df$mae[y])) <= tolerance) ) {
+          gl.tol <- gl.tol + 1
+        } else if( df$log.p[x] >= df$log.p[y] && (df$mae[x] >= df$mae[y] || abs(1- (df$mae[x]/df$mae[y])) <= tolerance)) {
+          gg.tol <- gg.tol + 1
+        } else if( df$log.p[x] <= df$log.p[y] && (df$mae[x] >= df$mae[y] || abs(1- (df$mae[x]/df$mae[y])) <= tolerance)) {
+          lg.tol <- lg.tol + 1
+        } else {
+          ll.tol <- ll.tol + 1
+        }
+      }
+    }
+  }
+  return(data.frame("N"=n, "GG"=gg, "GL"=gl, "LG"=lg, "LL"=ll, "GG.TOL"=gg.tol, "GL.TOL"=gl.tol, "LG.TOL"=lg.tol, "LL.TOL"=ll.tol))
+}
+
+cmp.sin <- pairwise.comp(sin, tolerance = 0.05)
+# Tolerance 0.01
+#         N       GG       GL       LG       LL   GG.TOL   GL.TOL   LG.TOL   LL.TOL
+#  98000100 17847254 31152796 31152796 17847254 17805137 31194913 31195309 17804741
+cmp.energy <- pairwise.comp(energy)
+cmp.parking <- pairwise.comp(parking)
+
